@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<circuit version="1.4" xmlns="http://schemas.circuit-diagram.org/circuitDiagramDocument/2012/document">
+  <properties>
+    <width>800</width>
+    <height>600</height>
+  </properties>
+  <definitions>
+    <src col="http://schemas.circuit-diagram.org/circuitDiagramDocument/2012/components/common">
+      <add id="0" item="battery" />
+      <add id="1" item="resistor" />
+      <add id="2" item="led" />
+      <add id="3" item="switch" />
+      <add id="4" item="ground" />
+    </src>
+  </definitions>
+  <elements>
+    <c id="0" tp="{0}" x="100" y="250" o="h" sz="60">
+      <prs><p k="voltage" v="9" /><p k="text" v="V1 9V" /></prs>
+      <cns><cn id="0" pt="a" /><cn id="10" pt="b" /></cns>
+    </c>
+    <c id="1" tp="{1}" x="220" y="150" o="h" sz="60">
+      <prs><p k="resistance" v="220" /><p k="text" v="R1 220" /></prs>
+      <cns><cn id="0" pt="a" /><cn id="1" pt="b" /></cns>
+    </c>
+    <c id="2" tp="{2}" x="340" y="150" o="h" sz="50">
+      <prs><p k="text" v="Red LED" /></prs>
+      <cns><cn id="1" pt="a" /><cn id="4" pt="b" /></cns>
+    </c>
+    <c id="3" tp="{1}" x="220" y="250" o="h" sz="60">
+      <prs><p k="resistance" v="330" /><p k="text" v="R2 330" /></prs>
+      <cns><cn id="0" pt="a" /><cn id="2" pt="b" /></cns>
+    </c>
+    <c id="4" tp="{2}" x="340" y="250" o="h" sz="50">
+      <prs><p k="text" v="Yellow LED" /></prs>
+      <cns><cn id="2" pt="a" /><cn id="5" pt="b" /></cns>
+    </c>
+    <c id="5" tp="{1}" x="220" y="350" o="h" sz="60">
+      <prs><p k="resistance" v="470" /><p k="text" v="R3 470" /></prs>
+      <cns><cn id="0" pt="a" /><cn id="3" pt="b" /></cns>
+    </c>
+    <c id="6" tp="{2}" x="340" y="350" o="h" sz="50">
+      <prs><p k="text" v="Green LED" /></prs>
+      <cns><cn id="3" pt="a" /><cn id="6" pt="b" /></cns>
+    </c>
+    <c id="7" tp="{4}" x="500" y="250" o="v" sz="40">
+      <prs><p k="text" v="GND" /></prs>
+      <cns><cn id="4" pt="a" /><cn id="5" pt="b" /><cn id="6" pt="c" /><cn id="10" pt="d" /></cns>
+    </c>
+  </elements>
+</circuit>

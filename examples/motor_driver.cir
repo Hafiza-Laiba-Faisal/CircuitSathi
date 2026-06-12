@@ -1,0 +1,11 @@
+Motor Driver with Filter and Protection
+* 12V supply driving a DC motor
+* RC filter on supply, protection diode across motor
+V1 supply 0 DC 12
+R1 supply filtered 100
+C1 filtered 0 470u
+R2 filtered motor_in 10
+M1 motor_in 0
+D1 motor_in filtered
+C2 motor_in 0 100u
+.END

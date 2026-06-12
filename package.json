@@ -1,0 +1,16 @@
+{
+  "name": "circuits-as-a-city",
+  "version": "1.0.0",
+  "description": "Educational platform that translates electronic circuits into an animated city simulation",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend"
+  }
+}

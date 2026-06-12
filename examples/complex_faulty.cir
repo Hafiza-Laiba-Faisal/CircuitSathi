@@ -1,0 +1,15 @@
+Faulty Complex Circuit - Multiple Issues
+* This circuit has several deliberate faults for debugging practice
+* Fault 1: D1 has no current-limiting resistor
+* Fault 2: S1 is open, breaking the motor branch
+* Fault 3: C2 is floating (not connected to ground)
+V1 pwr 0 DC 9
+R1 pwr bus 100
+D1 bus 0
+S1 bus motor_a 0
+M1 motor_a 0
+R2 bus cap_node 220
+C1 cap_node 0 100u
+R3 bus iso_node 1k
+C2 iso_node floating 47u
+.END

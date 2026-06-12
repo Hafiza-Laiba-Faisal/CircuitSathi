@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Local Node binaries (Portable versions we created)
+**/bin/
+**/lib/
+**/include/
+**/share/
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+
+# Zips (Only if you don't want to push the big backups)
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env*

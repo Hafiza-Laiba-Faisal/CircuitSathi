@@ -1,0 +1,12 @@
+LED Array with Current Limiting
+* Three LEDs in parallel, each with its own resistor
+* Powered by a 9V battery with a master switch
+V1 vcc 0 DC 9
+S1 vcc rail 1
+R1 rail led1_a 330
+D1 led1_a 0
+R2 rail led2_a 330
+D2 led2_a 0
+R3 rail led3_a 470
+D3 led3_a 0
+.END

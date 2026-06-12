@@ -1,0 +1,14 @@
+Sensor Network with Multiple Stages
+* Multi-stage circuit: power, sensing, processing, output
+V1 vcc 0 DC 5
+R1 vcc sense_out 10k
+C1 vcc 0 100u
+R2 sense_out amp_in 4.7k
+R3 amp_in amp_out 47k
+C2 amp_in 0 10u
+R4 amp_out indicator 1k
+D1 indicator 0
+R5 amp_out motor_drv 220
+M1 motor_drv 0
+C3 motor_drv 0 47u
+.END

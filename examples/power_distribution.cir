@@ -1,0 +1,17 @@
+Power Distribution Network
+* Battery powers two independent branches through a switch
+* Branch A: LED indicator with resistor
+* Branch B: Motor with capacitor smoothing
+* Both branches share ground
+V1 main_bus 0 DC 12
+S1 main_bus dist_a 1
+S2 main_bus dist_b 1
+R1 dist_a led_node 560
+D1 led_node 0
+R2 dist_b motor_supply 47
+C1 motor_supply 0 220u
+M1 motor_supply 0
+R3 dist_a cap_bank 100
+C2 cap_bank 0 1000u
+D2 cap_bank 0
+.END
