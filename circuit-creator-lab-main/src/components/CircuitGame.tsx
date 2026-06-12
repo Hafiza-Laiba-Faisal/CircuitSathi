@@ -295,6 +295,22 @@ export function CircuitGame() {
                   <img src={voltHero} alt="Volt" width={100} height={100} />
                 </div>
                 <div className="game-ground" />
+                
+                {/* On-ground Schematic Path */}
+                {isPowered && (
+                  <div className="absolute bottom-[9%] left-0 right-0 h-12 flex items-center justify-around px-8 pointer-events-none z-10">
+                    {board.map((part, idx) => (
+                      <div 
+                        key={`ground-sym-${idx}`} 
+                        className={`flex flex-col items-center transition-all duration-500 ${Math.abs(playerX - (20 + idx * (68 / Math.max(1, board.length - 1)))) < 10 ? "scale-125 brightness-150" : "scale-100 opacity-60"}`}
+                        style={{ position: 'absolute', left: `${20 + idx * (68 / Math.max(1, board.length - 1))}%`, transform: 'translateX(-50%)' }}
+                      >
+                         <SchematicSymbol type={part} powered={true} />
+                         <span className="text-[6px] text-primary/80 font-bold tracking-tighter bg-black/40 px-1 rounded">{partLabels[part].label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
