@@ -1,13 +1,20 @@
 // A single component in the circuit
 export type ComponentType =
-  | 'battery'
-  | 'wire'
-  | 'resistor'
-  | 'led'
-  | 'capacitor'
-  | 'switch'
-  | 'ground'
-  | 'motor'
+  // Level 1 — Beginner
+  | 'battery' | 'ground' | 'resistor' | 'led' | 'capacitor' | 'switch' | 'motor' | 'wire'
+  // Level 2 — Passive & Measurement
+  | 'inductor' | 'potentiometer'
+  | 'voltmeter' | 'ammeter' | 'multimeter' | 'oscilloscope' | 'probe'
+  // Level 3 — Semiconductors
+  | 'diode' | 'transistor' | 'mosfet'
+  // Sensors
+  | 'ldr' | 'thermistor'
+  // Output
+  | 'buzzer' | 'relay'
+  // Digital
+  | 'and_gate' | 'or_gate' | 'not_gate' | 'xor_gate' | 'clock'
+  // AC
+  | 'ac_source' | 'transformer'
 
 export interface CircuitComponent {
   id: string

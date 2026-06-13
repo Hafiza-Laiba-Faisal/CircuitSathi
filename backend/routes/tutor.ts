@@ -1,8 +1,16 @@
 import express from 'express'
 import multer from 'multer'
-const pdf = require('pdf-parse')
 import mammoth from 'mammoth'
 import { llm, llmWithTools, SATHI_TOOLS } from '../lib/ai'
+
+// Robust pdf-parse loader — handles CJS/ESM/default quirks
+let pdfParse: ((buffer: Buffer) => Promise<{ text: string }>) | null = null
+try {
+  const mod = require('pdf-parse')
+  if (typeof mod === 'function') pdfParse = mod
+  else if (mod && typeof mod.default === 'function') pdfParse = mod.default
+  else if (mod && typeof mod.pdf === 'function') pdfParse = mod.pdf
+} catch { /* pdf-parse not installed — will handle gracefully */ }
 
 const router = express.Router()
 const upload = multer({ storage: multer.memoryStorage() })
@@ -14,14 +22,9 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
   if (file) {
     try {
       if (file.mimetype === 'application/pdf') {
-        // Handle both common resolutions of pdf-parse
-        const pdfParser = typeof pdf === 'function' ? pdf : pdf.default;
-        if (typeof pdfParser === 'function') {
-          const data = await pdfParser(file.buffer)
-          manualText = data.text
-        } else {
-          throw new Error('pdf-parse is not a valid function');
-        }
+        if (!pdfParse) throw new Error('pdf-parse library not available')
+        const data = await pdfParse(file.buffer)
+        manualText = data.text
       } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const result = await mammoth.extractRawText({ buffer: file.buffer })
         manualText = result.value

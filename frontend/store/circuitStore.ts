@@ -172,7 +172,13 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
     const components: CircuitComponent[] = canvasNodes.map((node) => {
       const rawType = (node.data?.componentType as string) ?? 'wire'
       const mappedType = (TYPE_MAP[rawType] ?? rawType) as ComponentType
-      const validTypes: ComponentType[] = ['battery', 'wire', 'resistor', 'led', 'capacitor', 'switch', 'ground', 'motor']
+      const validTypes: ComponentType[] = [
+        'battery', 'wire', 'resistor', 'led', 'capacitor', 'switch', 'ground', 'motor',
+        'inductor', 'potentiometer', 'diode', 'transistor', 'mosfet',
+        'ldr', 'thermistor', 'voltmeter', 'ammeter', 'multimeter', 'oscilloscope', 'probe',
+        'buzzer', 'relay', 'and_gate', 'or_gate', 'not_gate', 'xor_gate', 'clock',
+        'ac_source', 'transformer',
+      ]
       const finalType: ComponentType = validTypes.includes(mappedType) ? mappedType : 'wire'
       return {
         id: node.id,

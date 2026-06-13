@@ -29,34 +29,77 @@ import { DEMO_CIRCUITS, DemoCircuit } from '../lib/demoCircuits'
 /* ------------------------------------------------------------------ */
 
 const CONFIGS: Record<CType, { label: string; color: string; symbol: string; defaultValue?: number }> = {
-  battery:   { label: 'Battery',   color: '#22c55e', symbol: '+\u2212', defaultValue: 9 },
-  resistor:  { label: 'Resistor',  color: '#f59e0b', symbol: '\u03A9',  defaultValue: 220 },
-  led:       { label: 'LED',       color: '#ef4444', symbol: '\u25D0' },
-  capacitor: { label: 'Capacitor', color: '#3b82f6', symbol: '||',      defaultValue: 100 },
-  switch:    { label: 'Switch',    color: '#f97316', symbol: '\u2A2F',  defaultValue: 1 },
-  motor:     { label: 'Motor',     color: '#8b5cf6', symbol: 'M' },
-  ground:    { label: 'Ground',    color: '#94a3b8', symbol: '\u23DA' },
-  wire:      { label: 'Wire',      color: '#6b7280', symbol: '\u2014' },
+  // Power
+  battery:      { label: 'Battery',      color: '#22c55e', symbol: '+−', defaultValue: 9 },
+  ground:       { label: 'Ground',       color: '#94a3b8', symbol: '⏚' },
+  ac_source:    { label: 'AC Source',    color: '#14b8a6', symbol: '∿', defaultValue: 220 },
+  // Passive
+  resistor:     { label: 'Resistor',     color: '#f59e0b', symbol: 'Ω', defaultValue: 220 },
+  capacitor:    { label: 'Capacitor',    color: '#3b82f6', symbol: '||', defaultValue: 100 },
+  inductor:     { label: 'Inductor',     color: '#a78bfa', symbol: '⌇', defaultValue: 10 },
+  potentiometer:{ label: 'Potentio.',    color: '#f97316', symbol: '↕Ω', defaultValue: 1000 },
+  // Semiconductors
+  led:          { label: 'LED',          color: '#ef4444', symbol: '◐' },
+  diode:        { label: 'Diode',        color: '#fb923c', symbol: '▷|' },
+  transistor:   { label: 'Transistor',   color: '#d946ef', symbol: 'BJT' },
+  mosfet:       { label: 'MOSFET',       color: '#c026d3', symbol: 'FET' },
+  // Sensors
+  ldr:          { label: 'LDR',          color: '#facc15', symbol: '☀R' },
+  thermistor:   { label: 'Thermistor',   color: '#f87171', symbol: '🌡R' },
+  // Measurement
+  voltmeter:    { label: 'Voltmeter',    color: '#38bdf8', symbol: 'V' },
+  ammeter:      { label: 'Ammeter',      color: '#34d399', symbol: 'A' },
+  multimeter:   { label: 'Multimeter',   color: '#60a5fa', symbol: 'M̃' },
+  oscilloscope: { label: 'Oscilloscope', color: '#818cf8', symbol: '∼∼' },
+  probe:        { label: 'Probe',        color: '#fbbf24', symbol: '⚡P' },
+  // Output
+  switch:       { label: 'Switch',       color: '#f97316', symbol: '⨯', defaultValue: 1 },
+  motor:        { label: 'Motor',        color: '#8b5cf6', symbol: 'M' },
+  buzzer:       { label: 'Buzzer',       color: '#e879f9', symbol: '🔊' },
+  relay:        { label: 'Relay',        color: '#a3e635', symbol: '⎍' },
+  // Digital
+  and_gate:     { label: 'AND',          color: '#06b6d4', symbol: '&' },
+  or_gate:      { label: 'OR',           color: '#22d3ee', symbol: '≥1' },
+  not_gate:     { label: 'NOT',          color: '#67e8f9', symbol: '¬' },
+  xor_gate:     { label: 'XOR',          color: '#0ea5e9', symbol: '⊕' },
+  clock:        { label: 'Clock',        color: '#2dd4bf', symbol: '⏲' },
+  // AC
+  transformer:  { label: 'Transformer',  color: '#10b981', symbol: '⧓' },
+  // Utility
+  wire:         { label: 'Wire',         color: '#6b7280', symbol: '—' },
 }
 
-const PALETTE: CType[] = ['battery', 'resistor', 'led', 'capacitor', 'switch', 'motor', 'ground']
+type PaletteGroup = { title: string; items: CType[] }
+
+const PALETTE_GROUPS: PaletteGroup[] = [
+  { title: 'Power',          items: ['battery', 'ground', 'ac_source'] },
+  { title: 'Passive',        items: ['resistor', 'capacitor', 'inductor', 'potentiometer'] },
+  { title: 'Semiconductors', items: ['led', 'diode', 'transistor', 'mosfet'] },
+  { title: 'Sensors',        items: ['ldr', 'thermistor'] },
+  { title: 'Measurement',    items: ['voltmeter', 'ammeter', 'multimeter', 'oscilloscope', 'probe'] },
+  { title: 'Output',         items: ['switch', 'motor', 'buzzer', 'relay'] },
+  { title: 'Digital',        items: ['and_gate', 'or_gate', 'not_gate', 'xor_gate', 'clock'] },
+]
+
+const PALETTE: CType[] = PALETTE_GROUPS.flatMap(g => g.items)
 
 // Map palette/upload types to simulation ComponentType so closed circuit is detected
 const SIM_TYPE_MAP: Record<string, CType> = {
-  voltage_source: 'battery',
-  current_source: 'battery',
-  inductor: 'resistor',
-  diode: 'led',
-  battery: 'battery',
-  resistor: 'resistor',
-  led: 'led',
-  capacitor: 'capacitor',
-  switch: 'switch',
-  motor: 'motor',
-  ground: 'ground',
-  wire: 'wire',
+  voltage_source: 'battery', current_source: 'battery',
+  battery: 'battery', resistor: 'resistor', led: 'led',
+  capacitor: 'capacitor', switch: 'switch', motor: 'motor',
+  ground: 'ground', wire: 'wire', inductor: 'inductor',
+  potentiometer: 'potentiometer', diode: 'diode',
+  transistor: 'transistor', mosfet: 'mosfet',
+  ldr: 'ldr', thermistor: 'thermistor',
+  voltmeter: 'voltmeter', ammeter: 'ammeter',
+  multimeter: 'multimeter', oscilloscope: 'oscilloscope', probe: 'probe',
+  buzzer: 'buzzer', relay: 'relay',
+  and_gate: 'and_gate', or_gate: 'or_gate', not_gate: 'not_gate',
+  xor_gate: 'xor_gate', clock: 'clock',
+  ac_source: 'ac_source', transformer: 'transformer',
 }
-const VALID_TYPES: CType[] = ['battery', 'wire', 'resistor', 'led', 'capacitor', 'switch', 'ground', 'motor']
+const VALID_TYPES: CType[] = Object.values(SIM_TYPE_MAP).filter((v, i, a) => a.indexOf(v) === i)
 function toSimType(raw: string | undefined): CType {
   const t = SIM_TYPE_MAP[raw ?? ''] ?? raw
   return (VALID_TYPES.includes(t as CType) ? t : 'wire') as CType
@@ -586,53 +629,59 @@ function BuilderInner() {
         </div>
       ) : (
         <>
-          {/* component palette */}
+          {/* component palette — grouped & scrollable */}
           <div style={{
-            display: 'flex', gap: 4, padding: '6px 8px',
+            display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 6px',
             background: '#0a0e1a', borderBottom: '2px solid #1e293b',
-            flexWrap: 'wrap',
+            maxHeight: 160, overflowY: 'auto', overflowX: 'hidden',
           }}>
-            {PALETTE.map(type => {
-              const c = CONFIGS[type]
-              const isActive = activeToolbarComponent === type
-              
-              return (
-                <div
-                  key={type}
-                  draggable
-                  onDragStart={e => {
-                    e.dataTransfer.setData('application/circuitcomponent', type)
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '4px 8px',
-                    background: isActive ? `${c.color}33` : '#0f172a',
-                    border: `2px solid ${isActive ? '#fbbf24' : `${c.color}44`}`,
-                    borderRadius: 2,
-                    cursor: 'grab',
-                    fontFamily: "'Press Start 2P', monospace",
-                    fontSize: 7,
-                    color: isActive ? '#fbbf24' : c.color,
-                    transition: 'all 0.3s ease',
-                    userSelect: 'none',
-                    boxShadow: isActive ? '0 0 15px #fbbf24' : 'none',
-                    transform: isActive ? 'scale(1.1)' : 'scale(1)',
-                    position: 'relative',
-                    zIndex: isActive ? 50 : 1
-                  }}
-                  className={isActive ? 'animate-bounce' : ''}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = c.color; e.currentTarget.style.boxShadow = `0 0 6px ${c.color}44` } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = `${c.color}44`; e.currentTarget.style.boxShadow = 'none' } }}
-                >
-                  <span style={{ fontSize: 11 }}>{c.symbol}</span>
-                  <span>{c.label}</span>
-                  {isActive && (
-                     <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
-                  )}
+            {PALETTE_GROUPS.map(group => (
+              <div key={group.title}>
+                <div style={{ fontSize: 7, color: '#475569', fontWeight: 'bold', letterSpacing: '0.15em', textTransform: 'uppercase', padding: '3px 4px 1px' }}>{group.title}</div>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  {group.items.map(type => {
+                    const c = CONFIGS[type]
+                    const isActive = activeToolbarComponent === type
+                    return (
+                      <div
+                        key={type}
+                        draggable
+                        onDragStart={e => {
+                          e.dataTransfer.setData('application/circuitcomponent', type)
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 3,
+                          padding: '3px 6px',
+                          background: isActive ? `${c.color}33` : '#0f172a',
+                          border: `1px solid ${isActive ? '#fbbf24' : `${c.color}33`}`,
+                          borderRadius: 3,
+                          cursor: 'grab',
+                          fontFamily: "monospace",
+                          fontSize: 8,
+                          color: isActive ? '#fbbf24' : c.color,
+                          transition: 'all 0.2s ease',
+                          userSelect: 'none',
+                          boxShadow: isActive ? '0 0 12px #fbbf24' : 'none',
+                          transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                          position: 'relative',
+                          zIndex: isActive ? 50 : 1
+                        }}
+                        className={isActive ? 'animate-bounce' : ''}
+                        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = c.color; e.currentTarget.style.boxShadow = `0 0 4px ${c.color}33` } }}
+                        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = `${c.color}33`; e.currentTarget.style.boxShadow = 'none' } }}
+                      >
+                        <span style={{ fontSize: 10 }}>{c.symbol}</span>
+                        <span>{c.label}</span>
+                        {isActive && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
 
           {/* Demo Circuits & Export bar */}
