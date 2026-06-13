@@ -35,22 +35,38 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
   }
 
   const systemPrompt = `You are an AI Physics Tutor (Sathi/Dost). 
-Your goal is to parse a lab manual and convert it into a structured tutorial for a 2D circuit simulator.
+Your goal is to parse a lab manual OR a general topic and convert it into a structured tutorial.
 
-Output EXACTLY a JSON object with a "steps" array. Each step MUST have:
-- "id": string
-- "title": short title (e.g., "Ohm's Law Phase 1")
-- "instruction": clear instruction for the student.
-- "explanation": a friendly bilingual explanation (English + Urdu/Hindi) of the physics concept.
-- "goalCriteria": { 
-    "requiredComponents": ["battery", "resistor", "led", "switch", "capacitor", "motor", "ground"], 
-    "minVoltage": number (optional), 
-    "powered": boolean 
-  }
+REQUIRED JSON OUTPUT FORMAT:
+{
+  "steps": [
+    {
+      "id": "string",
+      "title": "short title",
+      "instruction": "clear construction task",
+      "explanation": "bilingual explanation (English + Urdu/Hindi)",
+      "goalCriteria": { "requiredComponents": ["battery", "resistor", etc], "powered": true },
+      "initialGraph": { 
+        "components": [
+          { "id": "c1", "type": "battery", "label": "B1", "value": 9, "position": {"x": 100, "y": 100} },
+          ...
+        ],
+        "edges": [
+          { "id": "e1", "sourceId": "c1", "targetId": "c2", "sourcePin": "positive", "targetPin": "a" },
+          ...
+        ]
+      }
+    }
+  ]
+}
 
-Keep it to 3-5 clear steps. Use a friendly "Sathi" tone.`
+RULES:
+1. "initialGraph" should be a COMPLETE, functional solution for that specific step.
+2. If the user input is a simple topic (e.g., "Ohm's Law"), create a logical 3-step progression from basic to advanced.
+3. Coordinates for components should be spaced out (approx 150-200 units apart).
+4. Use a friendly, encouraging Sathi tone. Use Urdu/Hindi script for the Urdu parts.`
 
-  const prompt = `Convert this experiment into steps: \n\n${manualText}`
+  const prompt = `Topic or Manual Content: \n\n${manualText}`
 
   const result = await llm(prompt, systemPrompt, true)
   

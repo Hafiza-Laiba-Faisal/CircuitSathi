@@ -66,6 +66,7 @@ interface CircuitStore {
   setActiveStepIdx: (idx: number) => void
   setIsTutorialMode: (active: boolean) => void
   setManualText: (text: string | null) => void
+  loadStepSolution: (idx: number) => void
 }
 
 const emptyGraph: CircuitGraph = { components: [], edges: [] }
@@ -170,4 +171,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   setActiveStepIdx: (idx) => set({ activeStepIdx: idx }),
   setIsTutorialMode: (active) => set({ isTutorialMode: active }),
   setManualText: (text) => set({ manualText: text }),
+  loadStepSolution: (idx) => {
+    const { tutorialSteps } = get()
+    const step = tutorialSteps[idx]
+    if (step?.initialGraph) {
+      set({ pendingLoad: step.initialGraph })
+    }
+  },
 }))

@@ -79,6 +79,7 @@ export interface TutorialStep {
     minVoltage?: number
     powered?: boolean
   }
+  initialGraph?: CircuitGraph
 }
 
 export interface TutorialProgress {

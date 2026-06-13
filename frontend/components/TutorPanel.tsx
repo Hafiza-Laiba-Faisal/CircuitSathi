@@ -19,17 +19,22 @@ export default function TutorPanel() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [learningTopic, setLearningTopic] = useState('')
+  const loadStepSolution = useCircuitStore(s => s.loadStepSolution)
 
-  const handleStartTutorial = async () => {
-    if (!manualText && !selectedFile) return
+  const handleStartTutorial = async (mode: 'manual' | 'topic') => {
+    if (mode === 'manual' && !manualText && !selectedFile) return
+    if (mode === 'topic' && !learningTopic) return
+
     setLoading(true)
     setError(null)
     
     const formData = new FormData()
-    if (selectedFile) {
-      formData.append('manualFile', selectedFile)
-    } else if (manualText) {
-      formData.append('manualText', manualText)
+    if (mode === 'manual') {
+      if (selectedFile) formData.append('manualFile', selectedFile)
+      else if (manualText) formData.append('manualText', manualText)
+    } else {
+      formData.append('manualText', `Create a tutorial about this topic: ${learningTopic}`)
     }
 
     try {
@@ -41,7 +46,7 @@ export default function TutorPanel() {
       setActiveStepIdx(0)
     } catch (err) {
       console.error(err)
-      setError('AI failed to parse manual. Try a different file or clear text.' as any)
+      setError('AI failed to generate tutorial. Try again!' as any)
     } finally {
       setLoading(false)
     }
@@ -51,11 +56,31 @@ export default function TutorPanel() {
 
   if (!isTutorialMode) {
     return (
-      <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl p-6 shadow-2xl z-40 animate-in fade-in slide-in-from-right-4">
+      <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl p-6 shadow-2xl z-40 animate-in fade-in slide-in-from-right-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
         <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">AI Sathi Tutor</h3>
-        <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-          Upload your lab manual (PDF, DOCX, TXT) or paste the experiment details below.
-        </p>
+        
+        {/* Quick Learn Mode */}
+        <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+          <label className="text-[10px] font-bold text-amber-400/80 uppercase tracking-widest mb-2 block">Quick Learn (Any Topic)</label>
+          <input 
+            type="text"
+            className="w-full bg-black/40 border border-amber-500/20 rounded-lg p-2 text-xs text-slate-200 focus:border-amber-400/50 mb-3"
+            placeholder="e.g. Series Circuits, Ohm's Law..."
+            value={learningTopic}
+            onChange={(e) => setLearningTopic(e.target.value)}
+          />
+          <button
+            onClick={() => handleStartTutorial('topic')}
+            className="w-full py-2 rounded-lg bg-amber-500 text-black font-bold text-[10px] uppercase tracking-widest hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
+          >
+            {loading ? <span className="animate-spin text-lg">◌</span> : 'Start Learning'}
+          </button>
+        </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+          <div className="relative flex justify-center text-[9px] uppercase font-bold text-slate-700 bg-[#0a0e1a] px-2 font-mono italic">OR UPLOAD MANUAL</div>
+        </div>
 
         {/* File Upload Section */}
         <div className="mb-4">
@@ -73,23 +98,10 @@ export default function TutorPanel() {
               onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
             />
           </label>
-          {selectedFile && (
-            <button 
-              onClick={() => setSelectedFile(null)}
-              className="text-[10px] text-rose-500 mt-2 hover:underline"
-            >
-              Remove File
-            </button>
-          )}
-        </div>
-
-        <div className="relative mb-4">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-          <div className="relative flex justify-center text-[9px] uppercase font-bold text-slate-700 bg-[#0a0e1a] px-2">OR PASTE TEXT</div>
         </div>
 
         <textarea
-          className="w-full h-28 bg-black/40 border border-white/5 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-400/50 transition-colors custom-scrollbar"
+          className="w-full h-24 bg-black/40 border border-white/5 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-400/50 transition-colors custom-scrollbar mb-4"
           placeholder="Paste manual content here..."
           value={manualText || ''}
           onChange={(e) => {
@@ -97,28 +109,24 @@ export default function TutorPanel() {
             if (e.target.value) setSelectedFile(null)
           }}
         />
-        {error && <p className="text-[10px] text-rose-500 mt-2 font-medium">{error}</p>}
+        {error && <p className="text-[10px] text-rose-500 mb-2 font-medium">{error}</p>}
         <button
-          onClick={handleStartTutorial}
-          disabled={loading || !manualText}
-          className="w-full mt-4 py-3 bg-white text-black rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-200 transition-all disabled:opacity-50"
+          onClick={() => handleStartTutorial('manual')}
+          disabled={loading}
+          className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2"
         >
-          {loading ? 'AI is Thinking...' : 'Start Guided Lab'}
+          {loading ? <span className="animate-spin text-lg">◌</span> : 'Parse Lab Manual'}
         </button>
       </div>
     )
   }
 
-  if (!currentStep) return null
-
   return (
-    <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl shadow-2xl z-40 overflow-hidden animate-in fade-in slide-in-from-right-4">
-      {/* Header */}
-      <div className="bg-amber-400 px-5 py-3 flex justify-between items-center">
-        <span className="text-[10px] font-black text-black uppercase tracking-[0.2em]">Mission Active</span>
+    <div className="absolute top-20 right-6 w-85 glass-panel rounded-2xl p-6 shadow-2xl z-40 border border-amber-400/20 animate-in fade-in slide-in-from-right-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">Step {activeStepIdx + 1}/{tutorialSteps.length}</h3>
         <button 
           onClick={() => setIsTutorialMode(false)}
-          className="text-black hover:scale-110 transition-transform"
         >
           ✕
         </button>
