@@ -74,20 +74,15 @@ export default function TopNav() {
         </div>
       </div>
 
-      {/* Mode Tabs */}
-      <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5">
-        {MODES.map(mode => (
+      {/* Navigation Links */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-8">
+        {['Course', 'Manual', 'Build', 'Simulate', 'Quiz'].map((tab) => (
           <button
-            key={mode.id}
-            onClick={() => setActiveMode(mode.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-              activeMode === mode.id 
-                ? 'bg-amber-400/90 text-black shadow-lg shadow-amber-400/10 scale-[1.02]' 
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
+            key={tab}
+            className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-[0.25em] transition-all cursor-pointer relative group"
           >
-            <span className="text-base">{mode.icon}</span>
-            {mode.label}
+            {tab}
+            <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-amber-400 transition-all group-hover:w-full" />
           </button>
         ))}
       </div>

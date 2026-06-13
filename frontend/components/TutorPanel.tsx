@@ -139,75 +139,143 @@ export default function TutorPanel() {
     )
   }
 
-  return (
-    <div className="absolute top-20 right-6 w-85 glass-panel rounded-2xl p-6 shadow-2xl z-40 border border-amber-400/20 animate-in fade-in slide-in-from-right-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">Step {activeStepIdx + 1}/{tutorialSteps.length}</h3>
-        <button 
-          onClick={() => setIsTutorialMode(false)}
-        >
-          ✕
-        </button>
-      </div>
+  if (!isTutorialMode) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in duration-700">
+        <div className="max-w-4xl w-full grid grid-cols-2 gap-12 p-12">
+          {/* Left: Quick Start */}
+          <div className="space-y-6">
+             <div className="flex items-center gap-4 mb-2">
+                <div className="w-1 h-8 bg-amber-400 rounded-full" />
+                <h2 className="text-xl font-bold tracking-tight text-white">AI Sathi Learning Console</h2>
+             </div>
+             <p className="text-xs text-slate-400 leading-relaxed uppercase tracking-wider">Describe a topic or upload your laboratory manual to begin the interactive demonstration.</p>
+             
+             <div className="space-y-4 pt-4">
+                <div className="relative group">
+                  <input 
+                    type="text"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400/50 transition-all"
+                    placeholder="e.g. Logic Gates, Full Wave Rectifier..."
+                    value={learningTopic}
+                    onChange={(e) => setLearningTopic(e.target.value)}
+                  />
+                  <button
+                    onClick={() => handleStartTutorial('topic')}
+                    className="absolute right-2 top-2 px-6 py-2 rounded-lg bg-amber-400 text-black font-bold text-[10px] uppercase tracking-widest hover:bg-amber-300 transition-all shadow-xl shadow-amber-400/10"
+                  >
+                    {loading ? '...' : 'Explore'}
+                  </button>
+                </div>
+             </div>
+          </div>
 
-      <div className="p-6">
-        {/* Step Progress */}
-        <div className="flex gap-1.5 mb-4">
-          {tutorialSteps.map((_, i) => (
-            <div 
-              key={i} 
-              className={`h-1 rounded-full flex-1 transition-all duration-300 ${
-                i <= activeStepIdx ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'bg-slate-800'
-              }`}
-            />
-          ))}
+          {/* Right: Manual Upload */}
+          <div className="flex flex-col justify-center border-l border-white/5 pl-12 space-y-4">
+             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.25em]">Laboratory Integration</span>
+             <label className="group flex items-center gap-4 p-4 border border-white/5 bg-white/[0.02] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-all">
+                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">📤</div>
+                <div>
+                   <h3 className="text-xs font-bold text-slate-300 group-hover:text-amber-400 transition-colors uppercase tracking-wider">
+                     {selectedFile ? selectedFile.name : 'Upload Lab Manual'}
+                   </h3>
+                   <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-widest font-mono">PDF / DOC / TXT</p>
+                </div>
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept=".pdf,.docx,.txt"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                />
+             </label>
+             <button
+               onClick={() => handleStartTutorial('manual')}
+               className="w-full py-4 text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-[0.3em] transition-all border border-white/10 rounded-xl hover:border-white/30"
+             >
+               {loading ? 'Analyzing...' : 'Parse Manual'}
+             </button>
+          </div>
         </div>
+      </div>
+    )
+  }
 
-        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Step {activeStepIdx + 1}</h4>
-        <h3 className="text-base font-bold text-white mb-4 leading-tight">{currentStep.title}</h3>
-        
-        <div className="bg-white/5 rounded-xl p-4 border border-white/5 mb-4">
-          <p className="text-[11px] text-amber-200/90 leading-relaxed italic">
+  return (
+    <div className="h-full w-full flex overflow-hidden">
+      {/* 1. LEFT: Concept & Summary */}
+      <div className="w-1/3 border-r border-white/5 p-8 flex flex-col justify-center overflow-y-auto custom-scrollbar">
+        <div className="flex items-center gap-3 mb-6">
+          <span className="w-4 h-1 bg-amber-400 rounded-full" />
+          <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Phase 01: Concept</h2>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-4 tracking-tight leading-tight">{currentStep.title}</h2>
+        <div className="bg-amber-400/5 border border-amber-400/10 p-5 rounded-2xl">
+          <p className="text-xs text-amber-200/80 leading-relaxed font-medium italic">
             "{currentStep.explanation}"
           </p>
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Instructions</span>
-            <p className="text-xs text-slate-200 leading-relaxed">
-              {currentStep.instruction}
-            </p>
+      {/* 2. MIDDLE: Steps & Tasks */}
+      <div className="w-1/3 border-r border-white/5 p-8 flex flex-col justify-center bg-black/10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+             <span className="w-4 h-1 bg-emerald-400 rounded-full" />
+             <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Phase 02: Execution</h2>
           </div>
-
-          <div className="pt-4 border-t border-white/5">
-             <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Requirements</span>
-             </div>
-             <div className="flex flex-wrap gap-2">
-                {currentStep.goalCriteria.requiredComponents.map((comp, idx) => (
-                  <span key={idx} className="px-2 py-1 bg-slate-800 border border-white/5 rounded text-[9px] uppercase font-bold text-slate-400">
-                    {comp}
-                  </span>
-                ))}
-             </div>
-          </div>
+          <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Step {activeStepIdx + 1} of {tutorialSteps.length}</span>
         </div>
+        
+        <div className="space-y-6">
+           <div className="glass-panel-light p-6 rounded-2xl border border-white/5 bg-white/5">
+              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest block mb-3">Live Instruction</span>
+              <p className="text-sm font-medium text-slate-200 leading-relaxed">{currentStep.instruction}</p>
+           </div>
+           
+           <div className="flex gap-4">
+              <button
+                onClick={() => setActiveStepIdx(Math.max(0, activeStepIdx - 1))}
+                className="flex-1 py-4 text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5 rounded-xl"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setActiveStepIdx(Math.min(tutorialSteps.length - 1, activeStepIdx + 1))}
+                className="flex-[2] py-4 bg-white text-black font-bold text-[9px] uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all shadow-2xl shadow-white/5"
+              >
+                Next Procedure
+              </button>
+           </div>
+        </div>
+      </div>
 
-        <div className="mt-8 flex gap-3">
-          <button
-            onClick={() => setActiveStepIdx(Math.max(0, activeStepIdx - 1))}
-            disabled={activeStepIdx === 0}
-            className="flex-1 py-3 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all disabled:opacity-30"
-          >
-            Prev
-          </button>
-          <button
-            onClick={() => setActiveStepIdx(Math.min(tutorialSteps.length - 1, activeStepIdx + 1))}
-            className="flex-[2] py-3 bg-amber-400 text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-amber-300 transition-all shadow-lg shadow-amber-400/20"
-          >
-            {activeStepIdx === tutorialSteps.length - 1 ? 'Finish' : 'Next Step'}
-          </button>
+      {/* 3. RIGHT: Hints & Quiz */}
+      <div className="w-1/3 p-8 flex flex-col justify-center">
+        <div className="flex items-center gap-3 mb-6">
+           <span className="w-4 h-1 bg-blue-400 rounded-full" />
+           <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Phase 03: Validation</h2>
+        </div>
+        
+        <div className="grid grid-rows-2 gap-4 h-full py-4">
+           {/* Hint Section */}
+           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-center">
+              <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span className="animate-pulse">💡</span> Learning Hint
+              </span>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Connect the components as shown in the schematic above. Watch for the electron flow indicators in the simulation view.
+              </p>
+           </div>
+
+           {/* Quiz/Challenge Section */}
+           <div className="bg-amber-400/5 border border-dashed border-amber-400/20 rounded-2xl p-6 flex flex-col justify-center group cursor-pointer hover:bg-amber-400/10 transition-all">
+              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mb-3">Knowledge Check</span>
+              <p className="text-[11px] text-slate-300 font-medium group-hover:text-white">What happens to the current if the resistance is doubled in this configuration?</p>
+              <div className="mt-4 flex gap-2">
+                 <span className="px-2 py-1 bg-black/40 rounded text-[8px] font-bold text-slate-500 hover:text-amber-400 transition-colors uppercase border border-white/5">Option A</span>
+                 <span className="px-2 py-1 bg-black/40 rounded text-[8px] font-bold text-slate-500 hover:text-amber-400 transition-colors uppercase border border-white/5">Option B</span>
+              </div>
+           </div>
         </div>
       </div>
     </div>
