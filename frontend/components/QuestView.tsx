@@ -106,7 +106,7 @@ function getPhysicsStory(
       const iLine = circuitContext && circuitContext.rTotal > 0
         ? `\nI = ε/R = ${v}V / ${circuitContext.rTotal}Ω = ${(circuitContext.current * 1000).toFixed(1)}mA`
         : ''
-      return `⚡ POWER SOURCE — ${label}\nVoltage: ε = ${v}V (EMF)\nPushes electrons like water pressure.\nKirchhoff: ΣV around loop = 0${iLine}`
+      return `⚡ POWER STATION — ${label}\nVoltage: ε = ${v}V (EMF)\nGenerating the city's energy pressure.\nKirchhoff: ΣV around loop = 0${iLine}`
     }
     case 'resistor': {
       const r = value != null ? (value >= 1000 ? `${(value / 1000).toFixed(1)}kΩ` : `${Number(value).toFixed(0)}Ω`) : '?Ω'
@@ -114,28 +114,28 @@ function getPhysicsStory(
       const pDiss = circuitContext && circuitContext.current > 0 && value != null
         ? `P = I²R = ${(circuitContext.current * 1000).toFixed(1)}mA² × ${value}Ω = ${(circuitContext.current * circuitContext.current * value * 1000).toFixed(2)}mW`
         : ''
-      return `🔥 RESISTOR — ${label} (${r})\nV = I × R (Ohm's Law)\n${vDrop}${vDrop && pDiss ? '\n' : ''}${pDiss}\nConverts electrical energy → heat.`
+      return `🛑 TRAFFIC LIGHT (RESISTOR) — ${label} (${r})\nV = I × R (Ohm's Law)\n${vDrop}${vDrop && pDiss ? '\n' : ''}${pDiss}\nRegulates the city's traffic (current) flow.`
     }
     case 'led':
       return powered
-        ? `💡 LED — ${label} GLOWING!\nForward voltage V_f ≈ 2.0–3.5V\nCurrent → photon emission\nE = h × f = hc/λ\nTypical: λ_red≈625nm, λ_green≈530nm`
-        : `💡 LED — ${label} is dark.\nNeeds forward bias to emit light.\nV_f ≈ 2.0V minimum, check your path!\nNo current → no photons → no light.`
+        ? `💡 STREETLIGHT (LED) — ${label} GLOWING!\nForward voltage V_f ≈ 2.0–3.5V\nLighting up the city streets!\nE = h × f = hc/λ`
+        : `💡 STREETLIGHT (LED) — ${label} is dark.\nNeeds energy flow to light the street.\nV_f ≈ 2.0V minimum, check your path!`
     case 'capacitor': {
       const c = value != null ? `${value}µF` : '?µF'
-      return `🔋 CAPACITOR — ${label} (${c})\nStores charge: Q = C × V\nStored energy: E = ½CV²\nActs as: short at high freq,\nopen at DC (steady state).\nI = C × dV/dt`
+      return `🔋 WATER TANK (CAPACITOR) — ${label} (${c})\nStores charge: Q = C × V\nEmergency city reserves!\nI = C × dV/dt`
     }
     case 'switch':
       return value === 1
-        ? `🚪 SWITCH — ${label} CLOSED\nConducting: R_on ≈ 0Ω\nCurrent flows freely.\nDouble-click to open!`
-        : `🚪 SWITCH — ${label} OPEN\nBlocking: R_off = ∞Ω\nI = V/∞ = 0A — no current.\nDouble-click to close!`
+        ? `🚪 CITY GATE (SWITCH) — ${label} OPEN (CLOSED CIRCUIT)\nConducting: R_on ≈ 0Ω\nPath is open for business!`
+        : `🚪 CITY GATE (SWITCH) — ${label} CLOSED (OPEN CIRCUIT)\nBlocking: R_off = ∞Ω\nCity gates are locked.`
     case 'ground':
-      return `⏚ GROUND — ${label}\nReference potential: V = 0V\nKirchhoff's Current Law:\nΣI_in = ΣI_out at every node.\nAll current returns here.`
+      return `⏚ WASTE RECYCLE (GROUND) — ${label}\nReference potential: V = 0V\nAll energy returns here safely.\nΣI_in = ΣI_out`
     case 'motor':
       return powered
-        ? `⚙️ MOTOR — ${label} SPINNING!\nP_mech = η × V × I\nTorque: τ = K_t × I\nBack-EMF: V_back = K_e × ω\nElectrical energy → mechanical work`
-        : `⚙️ MOTOR — ${label} idle.\nNeeds current to produce torque.\nτ = K_t × I — check your path!`
+        ? `⚙️ FACTORY (MOTOR) — ${label} RUNNING!\nP_mech = η × V × I\nCity industry is booming!\nElectrical energy → mechanical work`
+        : `⚙️ FACTORY (MOTOR) — ${label} idle.\nNeeds energy flow to start production.\nτ = K_t × I — check your path!`
     default:
-      return `📍 JUNCTION — ${label}\nNode in circuit topology.\nKirchhoff: ΣI = 0 at each node.`
+      return `📍 JUNCTION — ${label}\nA crossroad in our city grid.`
   }
 }
 

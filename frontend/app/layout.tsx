@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ground Wire",
-  description: "An educational platform that translates electronic circuits into an animated world simulation",
+  title: "CircuitSathi — AI-Powered STEM Tutor",
+  description: "An advanced STEM learning platform that transforms circuit schematics into an interactive AI-guided city simulation.",
 };
 
 export default function RootLayout({

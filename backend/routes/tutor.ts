@@ -1,13 +1,35 @@
 import express from 'express'
+import multer from 'multer'
+import pdf from 'pdf-parse'
+import mammoth from 'mammoth'
 import { llm } from '../lib/ai'
 
 const router = express.Router()
+const upload = multer({ storage: multer.memoryStorage() })
 
-router.post('/parse', async (req, res) => {
-  const { manualText } = req.body
+router.post('/parse', upload.single('manualFile'), async (req, res) => {
+  let manualText = req.body.manualText || ''
+  const file = req.file
 
-  if (!manualText) {
-    return res.status(400).json({ error: 'Manual text is required' })
+  if (file) {
+    try {
+      if (file.mimetype === 'application/pdf') {
+        const data = await pdf(file.buffer)
+        manualText = data.text
+      } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const result = await mammoth.extractRawText({ buffer: file.buffer })
+        manualText = result.value
+      } else {
+        manualText = file.buffer.toString('utf-8')
+      }
+    } catch (err) {
+      console.error('File Parsing Error:', err)
+      return res.status(500).json({ error: 'Failed to parse the uploaded file' })
+    }
+  }
+
+  if (!manualText || manualText.trim().length === 0) {
+    return res.status(400).json({ error: 'Manual text or file is required' })
   }
 
   const systemPrompt = `You are an AI Physics Tutor (Sathi/Dost). 
@@ -19,7 +41,7 @@ Output EXACTLY a JSON object with a "steps" array. Each step MUST have:
 - "instruction": clear instruction for the student.
 - "explanation": a friendly bilingual explanation (English + Urdu/Hindi) of the physics concept.
 - "goalCriteria": { 
-    "requiredComponents": ["battery", "resistor", etc.], 
+    "requiredComponents": ["battery", "resistor", "led", "switch", "capacitor", "motor", "ground"], 
     "minVoltage": number (optional), 
     "powered": boolean 
   }
@@ -31,14 +53,14 @@ Keep it to 3-5 clear steps. Use a friendly "Sathi" tone.`
   const result = await llm(prompt, systemPrompt, true)
   
   if (!result) {
-    return res.status(500).json({ error: 'AI failed to parse the manual' })
+    return res.status(500).json({ error: 'AI failed to parse the manual content' })
   }
 
   try {
     const json = JSON.parse(result)
     res.json(json)
   } catch (e) {
-    res.status(500).json({ error: 'Invalid JSON response from AI' })
+    res.status(500).json({ error: 'Invalid JSON response from AI. Please try again with clear text.' })
   }
 })
 

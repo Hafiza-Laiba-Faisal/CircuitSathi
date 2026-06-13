@@ -18,21 +18,30 @@ export default function TutorPanel() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const handleStartTutorial = async () => {
-    if (!manualText) return
+    if (!manualText && !selectedFile) return
     setLoading(true)
     setError(null)
+    
+    const formData = new FormData()
+    if (selectedFile) {
+      formData.append('manualFile', selectedFile)
+    } else if (manualText) {
+      formData.append('manualText', manualText)
+    }
+
     try {
-      const response = await axios.post<{ steps: any[] }>('http://localhost:3001/api/tutor/parse', {
-        manualText,
+      const response = await axios.post<{ steps: any[] }>('http://localhost:3001/api/tutor/parse', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
       setTutorialSteps(response.data.steps)
       setIsTutorialMode(true)
       setActiveStepIdx(0)
     } catch (err) {
       console.error(err)
-      setError('AI failed to parse manual. Try a different text.' as any)
+      setError('AI failed to parse manual. Try a different file or clear text.' as any)
     } finally {
       setLoading(false)
     }
@@ -45,13 +54,48 @@ export default function TutorPanel() {
       <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl p-6 shadow-2xl z-40 animate-in fade-in slide-in-from-right-4">
         <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">AI Sathi Tutor</h3>
         <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-          Paste your lab experiment or manual below, and I'll guide you through it!
+          Upload your lab manual (PDF, DOCX, TXT) or paste the experiment details below.
         </p>
+
+        {/* File Upload Section */}
+        <div className="mb-4">
+          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-white/10 rounded-xl cursor-pointer hover:bg-white/5 hover:border-amber-400/30 transition-all">
+            <div className="flex flex-col items-center justify-center pt-2 pb-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                {selectedFile ? selectedFile.name : 'Choose Manual File'}
+              </span>
+              <p className="text-[9px] text-slate-600 mt-1">PDF, DOCX, or Raw Text</p>
+            </div>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept=".pdf,.docx,.txt"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+            />
+          </label>
+          {selectedFile && (
+            <button 
+              onClick={() => setSelectedFile(null)}
+              className="text-[10px] text-rose-500 mt-2 hover:underline"
+            >
+              Remove File
+            </button>
+          )}
+        </div>
+
+        <div className="relative mb-4">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+          <div className="relative flex justify-center text-[9px] uppercase font-bold text-slate-700 bg-[#0a0e1a] px-2">OR PASTE TEXT</div>
+        </div>
+
         <textarea
-          className="w-full h-32 bg-black/40 border border-white/5 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-400/50 transition-colors custom-scrollbar"
+          className="w-full h-28 bg-black/40 border border-white/5 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-amber-400/50 transition-colors custom-scrollbar"
           placeholder="Paste manual content here..."
           value={manualText || ''}
-          onChange={(e) => setManualText(e.target.value)}
+          onChange={(e) => {
+            setManualText(e.target.value)
+            if (e.target.value) setSelectedFile(null)
+          }}
         />
         {error && <p className="text-[10px] text-rose-500 mt-2 font-medium">{error}</p>}
         <button
