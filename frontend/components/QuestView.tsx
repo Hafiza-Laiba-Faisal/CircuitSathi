@@ -404,7 +404,9 @@ function drawLandmark(PIXI: any, lm: LandmarkData): any {
   c.label = lm.id
   const col = LANDMARK_COL[lm.type] ?? LANDMARK_COL.wire
   const lit = lm.powered
-  const strokeCol = lit ? col.glow : 0xcccccc
+  
+  // Make unpowered components much darker (0x333333) for better visibility / contrast
+  const strokeCol = lit ? col.glow : 0x333333
   const SW = 3  // stroke width
 
   // Background circle glow
