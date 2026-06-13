@@ -7,14 +7,18 @@ import SchematicBuilder from '../components/SchematicBuilder'
 
 const QuestView = dynamic(() => import('../components/QuestView'), { ssr: false })
 const VoiceAgent = dynamic(() => import('../components/VoiceAgent'), { ssr: false })
+const TutorPanel = dynamic(() => import('../components/TutorPanel'), { ssr: false })
 
 export default function Home() {
-  const { activeMode, simulationState } = useCircuitStore()
+  const { activeMode, simulationState, isTutorialMode } = useCircuitStore()
 
   return (
     <div className="flex flex-col h-screen text-white overflow-hidden bg-[#0a0e1a]">
       {/* Top Navigation */}
       <TopNav />
+
+      {/* AI Tutor Panel (Overlay when active) */}
+      <TutorPanel />
 
       {/* Main Two-Panel Layout */}
       <main className="flex flex-1 overflow-hidden p-3 gap-3">

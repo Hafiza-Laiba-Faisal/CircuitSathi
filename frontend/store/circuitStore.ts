@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { CircuitGraph, SimulationState, CircuitComponent, CircuitEdge, ComponentType } from '../../shared/types'
+import { CircuitGraph, SimulationState, CircuitComponent, CircuitEdge, ComponentType, TutorialStep } from '../../shared/types'
 import { simulate } from '../lib/simulationEngine'
 import type { Node as RFNode, Edge as RFEdge } from 'reactflow'
 import { LEVELS } from '../lib/levels'
@@ -36,6 +36,12 @@ interface CircuitStore {
   unlockedLevels: number[]
   currentLevelId: number
   currentMissionId: string
+  
+  // Tutorial Mode
+  tutorialSteps: TutorialStep[]
+  activeStepIdx: number
+  isTutorialMode: boolean
+  manualText: string | null
 
   setActiveMode: (mode: ActiveMode) => void
   setCircuitGraph: (graph: CircuitGraph) => void
@@ -54,6 +60,12 @@ interface CircuitStore {
   setCanvasStatus: (status: CanvasStatus) => void
   canvasToCircuitGraph: () => CircuitGraph
   completeMission: (missionId: string, reward: number) => void
+
+  // Tutorial Actions
+  setTutorialSteps: (steps: TutorialStep[]) => void
+  setActiveStepIdx: (idx: number) => void
+  setIsTutorialMode: (active: boolean) => void
+  setManualText: (text: string | null) => void
 }
 
 const emptyGraph: CircuitGraph = { components: [], edges: [] }
@@ -78,6 +90,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   unlockedLevels: [1],
   currentLevelId: 1,
   currentMissionId: 'ohm_1',
+
+  tutorialSteps: [],
+  activeStepIdx: 0,
+  isTutorialMode: false,
+  manualText: null,
 
   setActiveMode: (mode) => set({ activeMode: mode }),
 
@@ -148,4 +165,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
     }))
     return { components, edges }
   },
+
+  setTutorialSteps: (steps) => set({ tutorialSteps: steps }),
+  setActiveStepIdx: (idx) => set({ activeStepIdx: idx }),
+  setIsTutorialMode: (active) => set({ isTutorialMode: active }),
+  setManualText: (text) => set({ manualText: text }),
 }))

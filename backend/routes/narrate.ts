@@ -1,19 +1,27 @@
-import { Router, Request, Response } from 'express'
+import express from 'express'
+import { tts } from '../lib/ai'
 
-const router = Router()
+const router = express.Router()
 
-// POST /api/narrate
-// Accepts { commentary: string }, returns a placeholder audioUrl
-router.post('/', (req: Request, res: Response) => {
-  const { commentary } = req.body
+router.post('/', async (req, res) => {
+  const { text } = req.body
 
-  if (!commentary || typeof commentary !== 'string') {
-    res.status(400).json({ error: 'commentary string is required' })
-    return
+  if (!text) {
+    return res.status(400).json({ error: 'Text is required for narration' })
   }
 
-  // TODO: implement ElevenLabs TTS integration (feature/ai-pipeline)
-  res.json({ audioUrl: '' })
+  const audioBuffer = await tts(text) as Buffer | null
+
+  if (!audioBuffer) {
+    return res.status(500).json({ error: 'TTS generation failed' })
+  }
+
+  res.set({
+    'Content-Type': 'audio/wav',
+    'Content-Length': audioBuffer.length,
+  })
+
+  res.send(audioBuffer)
 })
 
 export default router

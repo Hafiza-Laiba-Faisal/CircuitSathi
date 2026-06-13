@@ -1006,6 +1006,9 @@ export default function QuestView() {
   const circuitGraph = useCircuitStore(s => s.circuitGraph)
   const simulationState = useCircuitStore(s => s.simulationState)
   const requestCircuitLoad = useCircuitStore(s => s.requestCircuitLoad)
+  const isTutorialMode = useCircuitStore(s => s.isTutorialMode)
+  const tutorialSteps = useCircuitStore(s => s.tutorialSteps)
+  const activeStepIdx = useCircuitStore(s => s.activeStepIdx)
   const setCurrentNarration = useCircuitStore(s => s.setCurrentNarration)
 
   // Chat log state
@@ -1013,6 +1016,28 @@ export default function QuestView() {
   const [showComponentPicker, setShowComponentPicker] = useState(false)
   const chatRef = useRef<HTMLDivElement>(null)
   const onHeroClickRef = useRef<() => void>(() => {})
+
+  // ─── Tutorial Validation ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isTutorialMode || tutorialSteps.length === 0) return
+    const currentStep = tutorialSteps[activeStepIdx]
+    if (!currentStep) return
+
+    const checkGoal = () => {
+      const { requiredComponents, powered } = currentStep.goalCriteria
+      const hasAll = requiredComponents.every(type => 
+        circuitGraph.components.some(c => c.type === type)
+      )
+      const isPowered = powered 
+        ? simulationState?.componentStates.some(s => s.powered) 
+        : true
+
+      if (hasAll && isPowered) {
+        // Goal met!
+      }
+    }
+    checkGoal()
+  }, [circuitGraph, simulationState, isTutorialMode, activeStepIdx, tutorialSteps])
 
   const addChatEntry = useCallback((text: string, type: ChatEntry['type']) => {
     const entry: ChatEntry = { id: ++_chatIdCounter, text, type, timestamp: Date.now() }
