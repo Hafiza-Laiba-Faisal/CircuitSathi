@@ -4,21 +4,34 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// ─── OpenRouter Client ────────────────────────────────────────────────────────
+// ─── AI Client Factory (Supports OpenRouter & Mistral) ────────────────────────
 const getClient = () => {
-  const apiKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey || apiKey.includes('your_')) {
-    console.warn('⚠️ OPENROUTER_API_KEY is missing or invalid. AI features will be disabled.')
+  const mistralKey = process.env.MISTRAL_API_KEY
+  const openRouterKey = process.env.OPENROUTER_API_KEY
+
+  // 1. Direct Mistral Integration (Priority)
+  if (mistralKey && !mistralKey.includes('your_')) {
+    return new OpenAI({
+      baseURL: process.env.MISTRAL_BASE_URL || 'https://api.mistral.ai/v1',
+      apiKey: mistralKey,
+      timeout: 180000,
+      maxRetries: 0
+    })
+  }
+
+  // 2. OpenRouter Fallback
+  if (!openRouterKey || openRouterKey.includes('your_')) {
+    console.warn('⚠️ AI API keys are missing. AI features will be disabled.')
     return null
   }
 
-  // Sanitise baseURL — OpenAI SDK appends /chat/completions itself
   let baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1'
   baseURL = baseURL.replace(/\/chat\/completions\/?$/, '').replace(/\/$/, '')
 
   return new OpenAI({
-    baseURL, apiKey,
-    timeout: 180000, // 180 seconds as per user example
+    baseURL, 
+    apiKey: openRouterKey,
+    timeout: 180000,
     maxRetries: 0,
     defaultHeaders: { 
       'HTTP-Referer': 'http://localhost:3001', 
@@ -140,7 +153,7 @@ export async function llm(prompt: string, systemPrompt: string, isJSON: boolean 
   if (!client) return null
 
   try {
-    const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+    const model = process.env.MISTRAL_MODEL || process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
     const response = await client.chat.completions.create({
       model,
       messages: [
@@ -163,7 +176,7 @@ export async function llm(prompt: string, systemPrompt: string, isJSON: boolean 
 export async function llmWithTools(prompt: string, systemPrompt: string, tools: any[]): Promise<ToolCallResult | null> {
   const client = getClient()
   if (!client) return null
-  const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+  const model = process.env.MISTRAL_MODEL || process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
