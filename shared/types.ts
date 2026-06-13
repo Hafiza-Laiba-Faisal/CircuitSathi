@@ -69,3 +69,20 @@ export interface CircuitProject {
   createdAt: Date
   updatedAt: Date
 }
+export interface TutorialStep {
+  id: string
+  title: string
+  instruction: string
+  explanation: string
+  goalCriteria: {
+    requiredComponents: ComponentType[]
+    minVoltage?: number
+    powered?: boolean
+  }
+}
+
+export interface TutorialProgress {
+  activeStepIdx: number
+  isComplete: boolean
+  manualText?: string
+}

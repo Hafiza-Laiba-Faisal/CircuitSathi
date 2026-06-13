@@ -1,102 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --pixel-font: 'Press Start 2P', monospace;
-  --retro-font: 'VT323', 'Courier New', monospace;
+  --bg-deep: #030712;
+  --bg-panel: rgba(17, 24, 39, 0.7);
+  --accent: #ffd700;
+  --accent-glow: rgba(255, 215, 0, 0.2);
+  --border-subtle: rgba(71, 85, 105, 0.3);
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--retro-font);
-  font-size: 16px;
-  image-rendering: pixelated;
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: unset;
-}
-
-/* Pixel heading font for titles and labels */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--pixel-font);
-}
-
-/* Buttons get pixel font */
-button {
-  font-family: var(--retro-font);
-}
-
-/* Make everything feel crisp / pixel-y */
-*, *::before, *::after {
-  -webkit-font-smoothing: none;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  .pixel-font {
-    font-family: var(--pixel-font);
-  }
-  .retro-font {
-    font-family: var(--retro-font);
-  }
-}
-
-/* Pixelated scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0a0e1a;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border: 1px solid #475569;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-/* React Flow dark theme overrides */
-.react-flow__pane {
-  cursor: default;
-}
-.react-flow__node {
-  color: #fff;
-  font-family: var(--retro-font);
-}
-.react-flow__edge-path {
-  stroke: #06b6d4;
-}
-.react-flow__connection-line {
-  stroke: #06b6d4;
-}
-.react-flow__controls {
-  background: #0f172a;
-  border: 2px solid #334155;
-  border-radius: 4px;
+  background-color: var(--bg-deep);
+  color: #f8fafc;
+  font-family: 'Outfit', sans-serif;
   overflow: hidden;
 }
-.react-flow__controls button {
-  background: #0f172a;
-  border-color: #334155;
-  color: #94a3b8;
-  fill: #94a3b8;
-  font-family: var(--pixel-font);
+
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
 }
-.react-flow__controls button:hover {
-  background: #1e293b;
-  color: #ffd700;
-  fill: #ffd700;
+
+.glow-text {
+  text-shadow: 0 0 10px var(--accent-glow);
 }
-.react-flow__minimap {
-  background: #0f172a;
-  border: 2px solid #334155;
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
 }
-.react-flow__attribution {
-  display: none !important;
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 10px;
 }

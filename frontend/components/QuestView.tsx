@@ -62,9 +62,9 @@ interface PixiState {
   app: any
   world: any
   heroContainer: any
-  heroFrames: any[]
-  heroFrameIdx: number
-  heroFrameTimer: number
+  heroSprite: any
+  heroFrames: any[] // walk frame Graphics
+  heroFrame: number
   speechBubbleContainer: any
   dayNightOverlay: any
   pathContainer: any
@@ -86,6 +86,7 @@ interface PixiState {
   voltageDropPopup: { text: string; yOffset: number; ageMs: number } | null
   voltageDropPopupContainer: any
   heroIntroShown: boolean
+  biomeTextures: Record<string, any>
 }
 
 // ─── Physics stories ──────────────────────────────────────────────────────────
@@ -142,12 +143,12 @@ function getPhysicsStory(
 const BIOME: Record<BiomeType, {
   bg: number; tile1: number; tile2: number; pathColor: number
 }> = {
-  forest:  { bg: 0x123d18, tile1: 0x1a4d22, tile2: 0x0e3010, pathColor: 0x6b4c30 },
-  dungeon: { bg: 0x0c0b20, tile1: 0x16143a, tile2: 0x0a0918, pathColor: 0x2a2255 },
-  desert:  { bg: 0x3a2410, tile1: 0x4a3018, tile2: 0x2e1c0c, pathColor: 0x8c7040 },
-  arctic:  { bg: 0x0e1e30, tile1: 0x182a42, tile2: 0x0a1624, pathColor: 0x6090a8 },
-  lava:    { bg: 0x1a0404, tile1: 0x280a0a, tile2: 0x0e0202, pathColor: 0xcc3300 },
-  void:    { bg: 0x040408, tile1: 0x0a0c1c, tile2: 0x020204, pathColor: 0x2a1255 },
+  forest:  { bg: 0x0a3a1a, tile1: 0x0c4420, tile2: 0x082e14, pathColor: 0x1a6b30 },
+  dungeon: { bg: 0x060814, tile1: 0x0a0d22, tile2: 0x04060c, pathColor: 0x1e2a5a },
+  desert:  { bg: 0x3d2a0a, tile1: 0x4a3a12, tile2: 0x2e1f08, pathColor: 0x6b4c1a },
+  arctic:  { bg: 0x0a2a3a, tile1: 0x0e3a4d, tile2: 0x061e2a, pathColor: 0x3388aa },
+  lava:    { bg: 0x1a0804, tile1: 0x2a0e08, tile2: 0x0e0402, pathColor: 0x882200 },
+  void:    { bg: 0x0a0515, tile1: 0x150b2a, tile2: 0x05030a, pathColor: 0x4a2a6b },
 }
 
 // ─── Component → RPG colours ──────────────────────────────────────────────────
@@ -325,65 +326,33 @@ function buildHeroPath(landmarks: LandmarkData[], edges: { sourceId: string; tar
   return pts
 }
 
-// ─── Tilemap ──────────────────────────────────────────────────────────────────
-function drawTiles(PIXI: any, container: any, biome: BiomeType): void {
+// ─── Tilemap (Image-based thematic biomes) ──────────────────────────────────
+async function drawTiles(PIXI: any, state: PixiState, biome: BiomeType): Promise<void> {
+  const container = state.tilesContainer
   container.removeChildren()
-  const pal = BIOME[biome]
-  const g = new PIXI.Graphics()
-  g.rect(0, 0, WORLD_W, WORLD_H).fill(pal.bg)
-
-  const TILE = 32
-  for (let tx = 0; tx < WORLD_W / TILE; tx++) {
-    for (let ty = 0; ty < WORLD_H / TILE; ty++) {
-      const h = (tx * 1619 + ty * 2971) % 17
-      if (h < 3) g.rect(tx * TILE, ty * TILE, TILE, TILE).fill(pal.tile1)
-      else if (h < 5) g.rect(tx * TILE, ty * TILE, TILE, TILE).fill(pal.tile2)
-    }
+  
+  const texture = state.biomeTextures[biome]
+  if (!texture) {
+    // Fallback if texture not loaded
+    const pal = BIOME[biome]
+    const g = new PIXI.Graphics()
+    g.rect(0, 0, WORLD_W, WORLD_H).fill(pal.bg)
+    container.addChild(g)
+    return
   }
 
-  const rng = seededRng(biome.charCodeAt(0) * 997)
-  if (biome === 'forest') {
-    for (let i = 0; i < 120; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H, sz = 12 + rng() * 20
-      g.rect(x - sz / 4, y, sz / 2, sz * 0.7).fill(0x2d1a00)
-      g.rect(x - sz / 2, y - sz * 0.8, sz, sz * 0.8).fill(0x0d5c1a)
-      g.rect(x - sz * 0.3, y - sz * 1.3, sz * 0.6, sz * 0.5).fill(0x147a24)
-    }
-  } else if (biome === 'dungeon') {
-    for (let i = 0; i < 40; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H
-      const w = 12 + rng() * 16, h2 = 40 + rng() * 60
-      g.rect(x, y, w, h2).fill(0x1e1c38)
-      g.rect(x + 2, y + 2, w - 4, 6).fill(0x2e2a50)
-    }
-    for (let i = 0; i < 20; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H
-      g.rect(x, y, 8, 16).fill(0x3a3060)
-      g.rect(x - 2, y - 8, 12, 8).fill(0xff8800)
-    }
-  } else if (biome === 'desert') {
-    for (let i = 0; i < 60; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H
-      g.ellipse(x, y, 80 + rng() * 100, 18 + rng() * 30).fill({ color: 0x7a5c30, alpha: 0.4 })
-    }
-  } else if (biome === 'arctic') {
-    for (let i = 0; i < 80; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H, h2 = 15 + rng() * 30
-      g.poly([x, y - h2, x + h2 / 3, y, x, y + 4, x - h2 / 3, y])
-        .fill({ color: 0x88ccee, alpha: 0.3 })
-    }
-  } else if (biome === 'lava') {
-    for (let i = 0; i < 60; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H
-      g.ellipse(x, y, 20 + rng() * 50, 8 + rng() * 20).fill({ color: 0xdd2200, alpha: 0.4 })
-    }
-  } else if (biome === 'void') {
-    for (let i = 0; i < 70; i++) {
-      const x = rng() * WORLD_W, y = rng() * WORLD_H, s = 4 + rng() * 12
-      g.rect(x, y, s, s).fill({ color: 0x3a1a5a, alpha: 0.6 })
-    }
-  }
-  container.addChild(g)
+  const tilingSprite = new PIXI.TilingSprite({
+    texture: texture,
+    width: WORLD_W,
+    height: WORLD_H,
+  })
+  
+  // ⚡ Dim the background to make the character and glowing paths pop out
+  tilingSprite.tint = 0x999999 
+  
+  // 📏 Adjust scale so the image feels like a detailed floor texture
+  tilingSprite.tileScale.set(0.65) 
+  container.addChild(tilingSprite)
 }
 
 // ─── Path line (orthogonal circuit traces) ────────────────────────────────────
@@ -395,7 +364,10 @@ function drawPathLine(PIXI: any, container: any, pts: PathPt[], biome: BiomeType
 
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1]
-    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ color: pal.pathColor, width: 24, alpha: 0.7 })
+    // 💡 Thicker dark base for high contrast against background
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ color: 0x000000, width: 28, alpha: 0.3 })
+    // Main colored trace
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ color: pal.pathColor, width: 22, alpha: 0.9 })
   }
   for (let i = 0; i < pts.length - 1; i++) {
     const a = pts[i], b = pts[i + 1]
@@ -403,9 +375,10 @@ function drawPathLine(PIXI: any, container: any, pts: PathPt[], biome: BiomeType
     const steps = Math.floor(dist / 18)
     for (let s = 0; s < steps; s += 2) {
       const t0 = s / steps, t1 = (s + 1) / steps
+      // Bright glowing electron flow (more visible on backgrounds)
       g.moveTo(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0)
         .lineTo(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1)
-        .stroke({ color: 0xffd700, width: 2, alpha: 0.5 })
+        .stroke({ color: 0xffea00, width: 6, alpha: 1.0 })
     }
   }
   for (let i = 1; i < pts.length - 1; i++) {
@@ -594,55 +567,121 @@ function drawLandmarksLayer(PIXI: any, container: any, landmarks: LandmarkData[]
   for (const lm of landmarks) container.addChild(drawLandmark(PIXI, lm))
 }
 
-// ─── Hero sprite (two walking frames) ─────────────────────────────────────────
-function buildHeroFrame(PIXI: any, frame: 0 | 1): any {
+// ─── Hero sprite (Traveler – High-quality Chibi design from volt.html) ──────
+function drawHeroFrame(PIXI: any, frame: number): any {
+  const c = new PIXI.Container()
   const g = new PIXI.Graphics()
-  if (frame === 0) {
-    g.rect(-10, 10, 7, 7).fill(0x3a1e00)
-    g.rect(3, 12, 7, 5).fill(0x3a1e00)
-    g.rect(-10, 0, 7, 11).fill(0x3b1d6e)
-    g.rect(3, 2, 7, 11).fill(0x3b1d6e)
-  } else {
-    g.rect(-8, 12, 7, 5).fill(0x3a1e00)
-    g.rect(1, 10, 7, 7).fill(0x3a1e00)
-    g.rect(-8, 2, 7, 11).fill(0x3b1d6e)
-    g.rect(1, 0, 7, 11).fill(0x3b1d6e)
+  const bob = Math.sin(frame * 0.4) * 2
+
+  // ---- electric aura ----
+  g.circle(0, -4 + bob, 24).fill({ color: 0xffaa00, alpha: 0.12 })
+  g.circle(0, -4 + bob, 16).fill({ color: 0xfff078, alpha: 0.2 })
+
+  // ---- legs (chibi) ----
+  const lyOff = Math.sin(frame * 0.4) * 3
+  // left leg
+  g.roundRect(-8, 10 + bob + lyOff, 6, 10, 3).fill(0x1a2a6c)
+  g.ellipse(-5, 20 + bob + lyOff, 6, 4).fill(0xffd700) // shoe
+  // right leg
+  g.roundRect(2, 10 + bob - lyOff, 6, 10, 3).fill(0x1a2a6c)
+  g.ellipse(5, 20 + bob - lyOff, 6, 4).fill(0xffd700) // shoe
+
+  // ---- body (dark blue suit) ----
+  g.ellipse(0, 2 + bob, 12, 11).fill(0x0d1450)
+  // belt
+  g.rect(-10, 6 + bob, 20, 2.5).fill(0xffd700)
+  // bolt emblem
+  g.poly([
+    1, -3+bob,
+    -2.5, 2+bob,
+    0.5, 2+bob,
+    -1, 5+bob,
+    3, 0+bob,
+    0.5, 0+bob
+  ]).fill(0xffee00)
+
+  // ---- arms ----
+  const arm = Math.sin(frame * 0.4) * 4
+  g.ellipse(-12, -2 - arm + bob, 4, 8).fill(0x1a2a6c) // left
+  g.ellipse(12, -2 + arm + bob, 4, 8).fill(0x1a2a6c) // right
+  g.circle(-13, 3 - arm + bob, 4).fill(0xffd700) // left glove
+  g.circle(13, 3 + arm + bob, 4).fill(0xffd700) // right glove
+
+  // ---- head (cute round chibi) ----
+  g.circle(0, -15 + bob, 13).fill(0xe89858) // skin
+  // blush
+  g.ellipse(-8, -10 + bob, 4, 2.5).fill({ color: 0xff788c, alpha: 0.5 })
+  g.ellipse(8, -10 + bob, 4, 2.5).fill({ color: 0xff788c, alpha: 0.5 })
+
+  // ---- goggles (yellow with cyan lenses) ----
+  g.arc(0, -17 + bob, 13, Math.PI, Math.PI * 2).stroke({ color: 0xffd700, width: 2 }) // strap
+  g.circle(-5, -17 + bob, 5).fill(0xffd700) // left frame
+  g.circle(5, -17 + bob, 5).fill(0xffd700) // right frame
+  g.circle(-5, -17 + bob, 4).fill(0x00d4ff) // left lens
+  g.circle(5, -17 + bob, 4).fill(0x00d4ff) // right lens
+  // lens shine
+  g.circle(-6, -18, 1).fill(0xffffff)
+  g.circle(4, -18, 1).fill(0xffffff)
+
+  // ---- hair (spiky yellow) ----
+  g.ellipse(0, -23 + bob, 12, 6).fill(0xffb000)
+  const spikes = [[-9,-2],[-5,-8],[-1,-11],[3,-9],[7,-5],[10,-1]]
+  spikes.forEach(([sx, sy]) => {
+    g.poly([
+      sx - 3, -22 + bob,
+      sx, -22 + sy + bob,
+      sx + 3, -22 + bob
+    ]).fill(0xfff080)
+  })
+
+  // ---- sparkles ----
+  for (let i = 0; i < 3; i++) {
+    const t = (frame * 0.1 + i * 2) % (Math.PI * 2)
+    const sx = Math.cos(t) * 22, sy = -5 + Math.sin(t) * 12
+    g.poly([
+      sx, sy - 2,
+      sx + 0.6, sy - 0.6,
+      sx + 2, sy,
+      sx + 0.6, sy + 0.6,
+      sx, sy + 2,
+      sx - 0.6, sy + 0.6,
+      sx - 2, sy,
+      sx - 0.6, sy - 0.6
+    ]).fill({ color: 0xffffff, alpha: 0.6 })
   }
-  g.rect(-5, -1, 10, 4).fill(0xf59e0b)
-  g.rect(-9, -16, 18, 17).fill(0x6b21a8)
-  g.rect(-13, -16, 5, 7).fill(0x7a2bbf)
-  g.rect(8, -16, 5, 7).fill(0x7a2bbf)
-  if (frame === 0) {
-    g.rect(-12, -12, 4, 11).fill(0x6b21a8)
-    g.rect(8, -8, 4, 9).fill(0x6b21a8)
-  } else {
-    g.rect(-12, -8, 4, 9).fill(0x6b21a8)
-    g.rect(8, -12, 4, 11).fill(0x6b21a8)
-  }
-  g.rect(-12, -2, 4, 5).fill(0xf4b87a)
-  g.rect(8, -2, 4, 5).fill(0xf4b87a)
-  g.rect(-3, -18, 6, 3).fill(0xf4b87a)
-  g.rect(-7, -30, 14, 13).fill(0xf4b87a)
-  g.rect(-7, -30, 14, 4).fill(0xc8860a)
-  g.rect(-9, -28, 3, 8).fill(0xc8860a)
-  g.rect(6, -28, 3, 8).fill(0xc8860a)
-  g.rect(-5, -23, 3, 3).fill(0x1a1a88)
-  g.rect(2, -23, 3, 3).fill(0x1a1a88)
-  g.rect(-3, -18, 6, 2).fill(0xcc7755)
-  g.rect(12, -24, 3, 26).fill(0xdddddd)
-  g.rect(8, -26, 10, 4).fill(0xaa8800)
-  g.rect(13, -28, 2, 5).fill(0xdddddd)
-  return g
+
+  c.addChild(g)
+  return c
 }
 
-function buildHeroGfx(PIXI: any): { container: any; frames: any[] } {
+async function buildHeroGfx(PIXI: any): Promise<{ container: any; sprite: any; frames: any[] }> {
   const container = new PIXI.Container()
-  const f0 = buildHeroFrame(PIXI, 0)
-  const f1 = buildHeroFrame(PIXI, 1)
-  f1.visible = false
-  container.addChild(f0)
-  container.addChild(f1)
-  return { container, frames: [f0, f1] }
+  
+  // ─── Shadow (at the bottom to ground the hero) ──────────────────────────
+  const shadow = new PIXI.Graphics()
+  shadow.ellipse(0, 24, 22, 10).fill({ color: 0x000000, alpha: 0.4 })
+  container.addChild(shadow)
+
+  const frames = [
+    drawHeroFrame(PIXI, 0),
+    drawHeroFrame(PIXI, 1.5),
+    drawHeroFrame(PIXI, 3),
+    drawHeroFrame(PIXI, 4.5)
+  ]
+  frames.forEach(f => {
+    f.visible = false
+    container.addChild(f)
+  })
+  frames[0].visible = true
+  return { container, sprite: frames[0], frames }
+}
+
+function updateHeroShadow(state: PixiState): void {
+  // Sync shadow scale with walk cycle
+  const shadow = state.heroContainer.children[0]
+  if (shadow && shadow.constructor.name === 'Graphics') {
+    shadow.scale.set(1 + Math.sin(state.elapsed * 0.008) * 0.05)
+  }
 }
 
 // ─── Landmark animation ───────────────────────────────────────────────────────
@@ -711,13 +750,14 @@ function drawSpeechBubble(PIXI: any, container: any, text: string, heroX: number
   const txt = new PIXI.Text({
     text,
     style: {
-      fontFamily: '"Press Start 2P", "Courier New", monospace',
-      fontSize: 8,
-      fill: 0xe2e8f0,
+      fontFamily: '"Space Grotesk", "Outfit", sans-serif',
+      fontSize: 10,
+      fill: 0xffffff,
       align: 'left',
-      lineHeight: 14,
+      lineHeight: 16,
       wordWrap: true,
       wordWrapWidth: MAX_W - PADDING * 2,
+      fontWeight: 'bold',
     },
   })
 
@@ -824,13 +864,13 @@ function updateHero(state: PixiState, deltaMS: number, addChatEntry: (text: stri
   const step = (scene.heroSpeed * resistScale * deltaMS) / 1000 / dist
   state.heroProgress += step
 
-  // Toggle walking frame
-  state.heroFrameTimer += deltaMS
-  if (state.heroFrameTimer >= 180) {
-    state.heroFrameTimer = 0
-    state.heroFrameIdx = 1 - state.heroFrameIdx
-    for (let fi = 0; fi < state.heroFrames.length; fi++) {
-      state.heroFrames[fi].visible = fi === state.heroFrameIdx
+  // Walk animation for Traveler (swap frames every 150ms)
+  if (state.heroFrames && state.heroFrames.length > 0) {
+    const frameCount = state.heroFrames.length
+    const newFrame = Math.floor(state.elapsed / 150) % frameCount
+    if (newFrame !== state.heroFrame) {
+      state.heroFrames.forEach((f, i) => f.visible = i === newFrame)
+      state.heroFrame = newFrame
     }
   }
 
@@ -860,9 +900,8 @@ function updateHero(state: PixiState, deltaMS: number, addChatEntry: (text: stri
 
   const baseX = a.x + (b.x - a.x) * state.heroProgress
   const baseY = a.y + (b.y - a.y) * state.heroProgress
-  const bob = Math.sin(state.elapsed * 0.012) * 3
   state.heroContainer.x = baseX
-  state.heroContainer.y = baseY + bob
+  state.heroContainer.y = baseY
   const dx = b.x - a.x
   if (Math.abs(dx) > 1) state.heroContainer.scale.x = dx > 0 ? 1 : -1
 }
@@ -913,11 +952,11 @@ function buildEmptyScreen(PIXI: any, container: any): void {
 }
 
 // ─── Build full scene ─────────────────────────────────────────────────────────
-function buildScene(PIXI: any, state: PixiState, scene: SceneData, app: any): void {
+async function buildScene(PIXI: any, state: PixiState, scene: SceneData, app: any): Promise<void> {
   state.currentScene = scene
   state.particles = []
 
-  drawTiles(PIXI, state.tilesContainer, scene.biome)
+  await drawTiles(PIXI, state, scene.biome)
   const path = buildHeroPath(scene.landmarks, scene.edges)
   state.heroPath = path
   // Only draw path trace when circuit is closed (it forms a real loop)
@@ -1076,8 +1115,19 @@ export default function QuestView() {
       app.stage.addChild(dayNightOverlay)
       app.stage.addChild(uiContainer)
 
-      const heroResult = buildHeroGfx(PIXI)
+      const heroResult = await buildHeroGfx(PIXI)
       heroContainer.addChild(heroResult.container)
+
+      // Preload biome images
+      const biomeTextures: Record<string, any> = {}
+      const biomes: BiomeType[] = ['forest', 'dungeon', 'desert', 'arctic', 'lava', 'void']
+      for (const b of biomes) {
+        try {
+          biomeTextures[b] = await PIXI.Assets.load(`/assets/biomes/${b}.png`)
+        } catch (e) {
+          console.warn(`Failed to load biome image for ${b}`, e)
+        }
+      }
       
       // Make hero interactive for upcoming Voice Agent integration
       heroContainer.eventMode = 'static'
@@ -1087,8 +1137,8 @@ export default function QuestView() {
       })
 
       const state: PixiState = {
-        app, world, heroContainer, heroFrames: heroResult.frames,
-        heroFrameIdx: 0, heroFrameTimer: 0,
+        app, world, heroContainer, heroSprite: heroResult.sprite,
+        heroFrames: heroResult.frames, heroFrame: 0,
         speechBubbleContainer,
         dayNightOverlay,
         pathContainer, landmarksContainer, tilesContainer, particlesContainer,
@@ -1101,17 +1151,18 @@ export default function QuestView() {
         voltageDropPopup: null,
         voltageDropPopupContainer,
         heroIntroShown: false,
+        biomeTextures,
       }
       pixiStateRef.current = state
 
       // Build scene
       const scene = deriveScene(circuitGraphRef.current, simulationStateRef.current)
-      buildScene(PIXI, state, scene, app)
+      await buildScene(PIXI, state, scene, app)
 
       if (!scene.isEmpty) {
         state.heroIntroShown = true
         addChatEntryRef.current(
-          '⚡ I AM VOLT!\nAn electron explorer who\ntravels through circuits.\nI power up cities, light LEDs,\nand spin motors across the land!',
+          '⚡ I AM TRAVELER!\nAn electron explorer who\ntravels through circuits.\nI power up cities, light LEDs,\nand spin motors across the land!',
           'story'
         )
         if (scene.isClosedCircuit) {
@@ -1140,7 +1191,7 @@ export default function QuestView() {
 
         // Speech bubble
         if (s.currentScene && !s.currentScene.isEmpty && !s.currentScene.isClosedCircuit) {
-          drawSpeechBubble(PIXI, s.speechBubbleContainer, '⚡ VOLT\nAwaiting a\ncomplete circuit!', s.heroContainer.x, s.heroContainer.y)
+          drawSpeechBubble(PIXI, s.speechBubbleContainer, '⚡ TRAVELER\nAwaiting a\ncomplete circuit!', s.heroContainer.x, s.heroContainer.y)
         } else if (s.currentStoryLandmark && s.currentScene) {
           const lm = s.currentScene.landmarks.find(l => l.id === s.currentStoryLandmark)
           if (lm) {
@@ -1151,6 +1202,12 @@ export default function QuestView() {
           s.speechBubbleContainer.removeChildren()
         }
 
+        if (s.currentScene && !s.currentScene.isEmpty) {
+          const tx = app.screen.width / 2 - s.heroContainer.x
+          const ty = app.screen.height / 2 - s.heroContainer.y
+          s.world.x += (tx - s.world.x) * 0.12 * ticker.deltaTime
+          s.world.y += (ty - s.world.y) * 0.12 * ticker.deltaTime
+        }
         // Voltage drop popup (floating "−X.X V" when passing a resistor)
         if (s.voltageDropPopup) {
           s.voltageDropPopup.ageMs += ticker.deltaMS
@@ -1159,13 +1216,7 @@ export default function QuestView() {
         }
         drawVoltageDropPopup(PIXI, s)
 
-        if (!s.currentScene.isEmpty) {
-          const tx = app.screen.width / 2 - s.heroContainer.x
-          const ty = app.screen.height / 2 - s.heroContainer.y
-          s.world.x += (tx - s.world.x) * 0.12 * ticker.deltaTime
-          s.world.y += (ty - s.world.y) * 0.12 * ticker.deltaTime
-        }
-
+        updateHeroShadow(s)
         updateDayNight(PIXI, s.dayNightOverlay, s.elapsed, app)
         animateLandmarks(s.landmarksContainer, s.animTick, s.currentScene)
         updateParticles(PIXI, s.particlesContainer, s)
@@ -1187,26 +1238,26 @@ export default function QuestView() {
     const s = pixiStateRef.current
     if (!s) return
     setChatLog([])
-    import('pixi.js').then(PIXI => {
+    import('pixi.js').then(async PIXI => {
       const s2 = pixiStateRef.current
       if (!s2) return
       const scene = deriveScene(circuitGraphRef.current, simulationStateRef.current)
-      wipeTransition(PIXI, s2.app, () => {
+      wipeTransition(PIXI, s2.app, async () => {
         const s3 = pixiStateRef.current
         if (s3) {
-          buildScene(PIXI, s3, scene, s3.app)
+          await buildScene(PIXI, s3, scene, s3.app)
           if (!scene.isEmpty) {
-            // Show Volt's intro only once
+            // Show Traveler's intro only once
             if (!s3.heroIntroShown) {
               s3.heroIntroShown = true
               addChatEntryRef.current(
-                '⚡ I AM VOLT!\nAn electron explorer who\ntravels through circuits.\nI power up cities, light LEDs,\nand spin motors across the land!',
+                '⚡ I AM TRAVELER!\nAn electron explorer who\ntravels through circuits.\nI power up cities, light LEDs,\nand spin motors across the land!',
                 'story'
               )
             }
 
             if (scene.isClosedCircuit) {
-              addChatEntryRef.current('🗺️ Circuit complete! VOLT begins the journey!', 'system')
+              addChatEntryRef.current('🗺️ Circuit complete! TRAVELER begins the journey!', 'system')
               const firstLm = scene.landmarks[0]
               if (firstLm) {
                 const story = getPhysicsStory(firstLm.type, firstLm.label, firstLm.value, firstLm.fault, firstLm.powered, firstLm.voltageDrop, scene.circuitContext)
@@ -1310,17 +1361,18 @@ export default function QuestView() {
             >
               <span
                 style={{
-                  fontFamily: '"Courier New", monospace',
-                  fontSize: 10,
+                  fontFamily: '"Outfit", sans-serif',
+                  fontSize: 11,
                   color: entry.type === 'fault'
                     ? '#fca5a5'
                     : entry.type === 'system'
                       ? '#93c5fd'
-                      : '#e2e8f0',
-                  lineHeight: 1.4,
+                      : '#f8fafc',
+                  lineHeight: 1.5,
                   whiteSpace: 'pre-wrap',
-                  letterSpacing: '0.02em',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                  letterSpacing: '0.01em',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  fontWeight: 500,
                 }}
               >
                 {entry.text}
@@ -1442,10 +1494,11 @@ export default function QuestView() {
             onClick={e => e.stopPropagation()}
           >
             <div style={{
-              fontFamily: "'Press Start 2P', monospace", fontSize: 8,
-              color: '#ffd700', marginBottom: 6, textAlign: 'center',
+              fontFamily: '"Space Grotesk", sans-serif', fontSize: 13,
+              color: '#ffd700', marginBottom: 4, textAlign: 'center',
+              fontWeight: 700, letterSpacing: '0.1em'
             }}>
-              + ADD COMPONENT
+              ADD COMPONENT
             </div>
             <div style={{
               fontFamily: 'monospace', fontSize: 10, color: '#64748b',
@@ -1477,7 +1530,7 @@ export default function QuestView() {
                   }}
                 >
                   <span style={{ fontSize: 20 }}>{item.symbol}</span>
-                  <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 5, color: item.color }}>
+                  <span style={{ fontFamily: '"Space Grotesk", sans-serif', fontSize: 9, color: item.color, fontWeight: 700, letterSpacing: '0.05em' }}>
                     {item.label}
                   </span>
                   {item.defaultValue !== undefined && (

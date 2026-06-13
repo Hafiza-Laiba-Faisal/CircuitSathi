@@ -7,9 +7,9 @@ import { CircuitProject } from '../../shared/types'
 
 type Mode = 'build' | 'upload' | 'learn' | 'debug' | 'challenge'
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: 'build', label: '⚡ Build' },
-  { id: 'upload', label: '📤 Upload' },
+const MODES: { id: Mode; label: string; icon: string }[] = [
+  { id: 'build', label: 'Manual Build', icon: '⚡' },
+  { id: 'upload', label: 'AI Upload', icon: '📤' },
 ]
 
 export default function TopNav() {
@@ -36,9 +36,6 @@ export default function TopNav() {
     try {
       const saved = await saveProject(name, circuitGraph, simulationState)
       setProjectMeta(saved._id ?? null, name)
-    } catch (err) {
-      console.error('Save failed:', err)
-      window.alert('Failed to save — is the backend running?')
     } finally {
       setSaving(false)
     }
@@ -51,8 +48,6 @@ export default function TopNav() {
       const list = await fetchProjects()
       setProjects(list)
       setLoadOpen(true)
-    } catch {
-      window.alert('Failed to load projects — is the backend running?')
     } finally {
       setLoadingProjects(false)
     }
@@ -65,131 +60,95 @@ export default function TopNav() {
   }
 
   return (
-    <nav className="relative flex items-center justify-between text-white px-4 py-2"
-      style={{
-        background: '#0a0e1a',
-        borderBottom: '2px solid #1e293b',
-        boxShadow: '0 2px 0 #000',
-      }}
-    >
-      <h1
-        style={{
-          fontFamily: "'Press Start 2P', monospace",
-          fontSize: 12,
-          color: '#ffd700',
-          letterSpacing: '0.05em',
-          textShadow: '2px 2px 0 #4a3500',
-        }}
-      >
-        ⚡ GROUND WIRE
-      </h1>
+    <nav className="relative flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/40 backdrop-blur-md z-50">
+      {/* Brand */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+          <span className="text-2xl">⚡</span>
+        </div>
+        <div>
+          <h1 className="font-bold text-xl tracking-tight text-white flex items-center gap-2">
+            CIRCUIT <span className="text-amber-400">SATHI</span>
+          </h1>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">AI x STEM Education Platform</p>
+        </div>
+      </div>
 
-      {/* mode tabs */}
-      <div className="flex gap-1">
+      {/* Mode Tabs */}
+      <div className="flex bg-slate-900/50 p-1 rounded-xl border border-white/5">
         {MODES.map(mode => (
           <button
             key={mode.id}
             onClick={() => setActiveMode(mode.id)}
-            style={{
-              fontFamily: "'Press Start 2P', monospace",
-              fontSize: 8,
-              padding: '6px 10px',
-              border: activeMode === mode.id ? '2px solid #ffd700' : '2px solid #334155',
-              borderRadius: 2,
-              background: activeMode === mode.id ? '#1a1500' : '#0f172a',
-              color: activeMode === mode.id ? '#ffd700' : '#94a3b8',
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-              textShadow: activeMode === mode.id ? '0 0 6px #ffd700' : 'none',
-            }}
-            onMouseEnter={e => {
-              if (activeMode !== mode.id) {
-                e.currentTarget.style.borderColor = '#64748b'
-                e.currentTarget.style.color = '#e2e8f0'
-              }
-            }}
-            onMouseLeave={e => {
-              if (activeMode !== mode.id) {
-                e.currentTarget.style.borderColor = '#334155'
-                e.currentTarget.style.color = '#94a3b8'
-              }
-            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              activeMode === mode.id 
+                ? 'bg-amber-400/90 text-black shadow-lg shadow-amber-400/10 scale-[1.02]' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
           >
+            <span className="text-base">{mode.icon}</span>
             {mode.label}
           </button>
         ))}
       </div>
 
-      {/* project actions */}
-      <div className="flex items-center gap-1">
-        {[
-          { label: '🆕 New', onClick: clearCircuit, disabled: false },
-          { label: '💾 Save', onClick: handleSave, disabled: saving || circuitGraph.components.length === 0 },
-          { label: saving ? '⏳...' : '📂 Load', onClick: handleLoadToggle, disabled: loadingProjects },
-        ].map((btn, i) => (
-          <button
-            key={i}
-            onClick={btn.onClick}
-            disabled={btn.disabled}
-            style={{
-              fontFamily: "'Press Start 2P', monospace",
-              fontSize: 7,
-              padding: '5px 8px',
-              border: '2px solid #334155',
-              borderRadius: 2,
-              background: '#0f172a',
-              color: btn.disabled ? '#475569' : '#94a3b8',
-              cursor: btn.disabled ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { if (!btn.disabled) { e.currentTarget.style.color = '#ffd700'; e.currentTarget.style.borderColor = '#ffd700' } }}
-            onMouseLeave={e => { e.currentTarget.style.color = btn.disabled ? '#475569' : '#94a3b8'; e.currentTarget.style.borderColor = '#334155' }}
-          >
-            {btn.label}
-          </button>
-        ))}
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={clearCircuit}
+          className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+        >
+          Reset
+        </button>
+        <button
+          onClick={handleLoadToggle}
+          disabled={loadingProjects}
+          className="px-5 py-2 text-sm font-semibold rounded-lg bg-slate-800 border border-white/10 hover:border-white/20 transition-all"
+        >
+          {loadingProjects ? '...' : 'Open Project'}
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving || circuitGraph.components.length === 0}
+          className="px-5 py-2 text-sm font-semibold rounded-lg bg-white text-black hover:bg-slate-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Work'}
+        </button>
       </div>
 
-      {/* load dropdown */}
+      {/* Project Dropdown */}
       {loadOpen && (
-        <div
-          className="absolute right-4 top-full mt-1 w-72 z-50 max-h-64 overflow-y-auto"
-          style={{
-            background: '#0f172a',
-            border: '2px solid #334155',
-            borderRadius: 4,
-            boxShadow: '4px 4px 0 rgba(0,0,0,0.5)',
-          }}
-        >
-          {projects.length === 0 ? (
-            <p style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: '#64748b', padding: 12, textAlign: 'center' }}>
-              NO SAVED PROJECTS
-            </p>
-          ) : (
-            projects.map(proj => (
-              <button
-                key={proj._id}
-                onClick={() => handleLoadProject(proj)}
-                className="w-full text-left transition-colors"
-                style={{
-                  padding: '8px 12px',
-                  borderBottom: '1px solid #1e293b',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#1e293b'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 8, color: '#e2e8f0' }}>
-                  {proj.name}
-                </span>
-                <span style={{ display: 'block', fontFamily: "'VT323', monospace", fontSize: 14, color: '#64748b', marginTop: 2 }}>
-                  {proj.graph.components.length} components &middot;{' '}
-                  {new Date(proj.updatedAt).toLocaleDateString()}
-                </span>
-              </button>
-            ))
-          )}
+        <div className="absolute right-6 top-full mt-2 w-80 glass-panel rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 border-b border-white/5 bg-white/5">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Saved Projects</h3>
+          </div>
+          <div className="max-h-72 overflow-y-auto custom-scrollbar">
+            {projects.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-sm italic">No projects yet</div>
+            ) : (
+              projects.map(proj => (
+                <button
+                  key={proj._id}
+                  onClick={() => handleLoadProject(proj)}
+                  className="w-full p-4 text-left hover:bg-white/5 transition-colors border-b border-white/5 group"
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-bold text-slate-200 group-hover:text-amber-400 transition-colors uppercase text-xs tracking-wider">
+                      {proj.name}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {new Date(proj.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 flex gap-2">
+                    <span>{proj.graph.components.length} components</span>
+                    <span>•</span>
+                    <span className="text-emerald-500/80">V {proj.graph.components.find(c => c.type === 'battery')?.value ?? 0}V</span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </nav>

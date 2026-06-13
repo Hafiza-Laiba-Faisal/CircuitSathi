@@ -197,9 +197,9 @@
 .volt-running { animation: volt-bob 140ms ease-in-out; }
 .game-checkpoint { position: absolute; z-index: 8; bottom: 11%; display: flex; width: 76px; transform: translateX(-50%); flex-direction: column; align-items: center; gap: 3px; border: 1px solid color-mix(in oklab, var(--primary) 55%, transparent); border-radius: var(--radius-md); background: color-mix(in oklab, var(--panel) 84%, transparent); padding: 7px 4px; color: var(--foreground); font-size: 8px; text-transform: uppercase; backdrop-filter: blur(4px); box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 12%, transparent); transition: opacity 200ms, transform 200ms; }
 .game-checkpoint:hover { transform: translateX(-50%) translateY(-4px); border-color: var(--primary); }
-.game-checkpoint-symbol { font-family: var(--font-display); font-size: 18px; line-height: 1; color: var(--primary); }
-.game-checkpoint-collected { opacity: 0.4; border-color: var(--success); }
-.game-checkpoint-collected .game-checkpoint-symbol { color: var(--success); }
+.game-checkpoint-symbol { line-height: 1; display: flex; align-items: center; justify-content: center; min-height: 32px; }
+.game-checkpoint-collected { opacity: 1; border-color: var(--success); background: color-mix(in oklab, var(--success) 10%, var(--panel) 90%); }
+.game-checkpoint-collected span { color: var(--success); opacity: 0.8; }
 
 @keyframes volt-bob { 50% { margin-bottom: 7px; } }
 
@@ -249,7 +249,29 @@
   border-color: color-mix(in oklab, var(--primary) 70%, transparent) !important;
   box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 45%, transparent);
 }
+
 .fault-bar { border-color: color-mix(in oklab, var(--destructive) 55%, transparent) !important; background: color-mix(in oklab, var(--destructive) 14%, transparent) !important; color: var(--destructive) !important; }
+
+/* Assembly Board Enhancements */
+.assembly-slot { transition: all 200ms ease-out; position: relative; }
+.assembly-slot:hover { border-color: var(--primary); background: color-mix(in oklab, var(--primary) 5%, transparent); }
+.assembly-slot::after { content: ''; position: absolute; inset: -4px; border: 1px solid transparent; border-radius: inherit; transition: border-color 300ms; }
+.assembly-slot-filled { border-style: solid; border-color: var(--primary); box-shadow: 0 0 15px color-mix(in oklab, var(--primary) 20%, transparent); }
+
+.inventory-item { transition: all 150ms ease; cursor: pointer; }
+.inventory-item:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px color-mix(in oklab, var(--primary) 30%, transparent); }
+
+/* Improved Electron Flow Animation */
+.circuit-loop-dash { 
+  stroke: #fff; 
+  stroke-width: 2.5; 
+  stroke-dasharray: 4 20; 
+  stroke-linecap: round;
+  animation: loop-dash var(--flow-duration, 1.4s) linear infinite; 
+  opacity: 1;
+  filter: drop-shadow(0 0 2px #fff);
+}
+@keyframes loop-dash { from { stroke-dashoffset: 48; } to { stroke-dashoffset: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
