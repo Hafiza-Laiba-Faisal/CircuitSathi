@@ -22,6 +22,10 @@ export default function TopNav() {
     setProjectMeta,
     clearCircuit,
     projectName,
+    tutorLayout,
+    setTutorLayout,
+    schematicWidthPct,
+    setSchematicWidthPct,
   } = useCircuitStore()
 
   const [saving, setSaving] = useState(false)
@@ -74,17 +78,44 @@ export default function TopNav() {
         </div>
       </div>
 
-      {/* Navigation Links */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-8">
-        {['Course', 'Manual', 'Build', 'Simulate', 'Quiz'].map((tab) => (
-          <button
-            key={tab}
-            className="text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-[0.25em] transition-all cursor-pointer relative group"
-          >
-            {tab}
-            <span className="absolute -bottom-1 left-0 w-0 h-[1px] bg-amber-400 transition-all group-hover:w-full" />
-          </button>
-        ))}
+      {/* Layout Controls */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
+        
+        {/* Tutor Position */}
+        <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest px-3 font-bold">Tutor</span>
+          {['bottom', 'right', 'hidden'].map((layout) => (
+            <button
+              key={layout}
+              onClick={() => setTutorLayout(layout as any)}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
+                tutorLayout === layout 
+                ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)]' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {layout}
+            </button>
+          ))}
+        </div>
+
+        {/* Schematic Width */}
+        <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest px-3 font-bold">Schematic</span>
+          {[30, 50, 70].map((pct) => (
+            <button
+              key={pct}
+              onClick={() => setSchematicWidthPct(pct)}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
+                schematicWidthPct === pct 
+                ? 'bg-slate-700 text-white' 
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {pct}%
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Actions */}

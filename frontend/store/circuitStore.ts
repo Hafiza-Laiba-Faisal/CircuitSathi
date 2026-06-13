@@ -6,6 +6,7 @@ import { LEVELS } from '../lib/levels'
 
 type ActiveMode = 'build' | 'upload' | 'learn' | 'debug' | 'challenge'
 export type CanvasStatus = 'idle' | 'drawing' | 'simulating' | 'updated' | 'incomplete' | 'fault'
+export type TutorLayout = 'bottom' | 'right' | 'hidden'
 
 const TYPE_MAP: Record<string, ComponentType> = {
   inductor: 'resistor',
@@ -45,7 +46,13 @@ interface CircuitStore {
   voiceEnabled: boolean
   activeToolbarComponent: ComponentType | null
 
+  // Layout Preferences
+  tutorLayout: TutorLayout
+  schematicWidthPct: number
+
   setActiveMode: (mode: ActiveMode) => void
+  setTutorLayout: (layout: TutorLayout) => void
+  setSchematicWidthPct: (pct: number) => void
   setCircuitGraph: (graph: CircuitGraph) => void
   setSimulationState: (state: SimulationState | null) => void
   setSelectedComponentId: (id: string | null) => void
@@ -106,7 +113,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   manualText: null,
   voiceEnabled: false,
 
+  tutorLayout: 'bottom',
+  schematicWidthPct: 50,
+
   setActiveMode: (mode) => set({ activeMode: mode }),
+  setTutorLayout: (layout) => set({ tutorLayout: layout }),
+  setSchematicWidthPct: (pct) => set({ schematicWidthPct: pct }),
 
   setCircuitGraph: (graph) => {
     const sim = simulate(graph)
