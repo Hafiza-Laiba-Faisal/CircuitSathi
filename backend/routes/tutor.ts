@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import pdf from 'pdf-parse'
+const pdf = require('pdf-parse')
 import mammoth from 'mammoth'
 import { llm } from '../lib/ai'
 
@@ -27,6 +27,8 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
       return res.status(500).json({ error: 'Failed to parse the uploaded file' })
     }
   }
+
+  console.log(`[Tutor] Parsing manual. Text length: ${manualText?.length || 0}`)
 
   if (!manualText || manualText.trim().length === 0) {
     return res.status(400).json({ error: 'Manual text or file is required' })
