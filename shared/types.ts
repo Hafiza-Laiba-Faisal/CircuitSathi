@@ -50,7 +50,13 @@ export type FaultType =
 export interface ComponentState {
   componentId: string
   powered: boolean
-  currentFlow: number // 0.0 to 1.0 normalised
+  currentFlow: number // 0.0 to 1.0 normalised for visuals
+  
+  // Realistic Electrical Parameters
+  voltage?: number    // in Volts
+  current?: number    // in Amperes
+  resistance?: number // in Ohms
+  power?: number      // in Watts
   fault?: FaultType
 }
 
@@ -58,7 +64,12 @@ export interface SimulationState {
   isValid: boolean
   componentStates: ComponentState[]
   faults: { componentId: string; fault: FaultType; message: string }[]
-  commentary?: string // Gemini-generated plain English explanation
+  commentary?: string 
+  
+  // Global Circuit Specs
+  vBat?: number
+  iTotal?: number
+  rTotal?: number
 }
 
 export interface FaultHistoryEntry {

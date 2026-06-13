@@ -10,27 +10,18 @@ export function simulate(graph: CircuitGraph): SimulationState {
   const { components, edges } = graph
 
   if (components.length === 0) {
-    return {
-      isValid: true,
-      componentStates: [],
-      faults: [],
-      commentary: 'Empty circuit. Drag components from the palette to start building.',
-    }
+    return { isValid: true, componentStates: [], faults: [], commentary: 'Empty. Add components to start.' }
   }
 
   const batteries = components.filter(c => c.type === 'battery')
   const grounds = components.filter(c => c.type === 'ground')
-  const leds = components.filter(c => c.type === 'led')
-  const resistors = components.filter(c => c.type === 'resistor')
-  const switches = components.filter(c => c.type === 'switch')
   const faults: { componentId: string; fault: FaultType; message: string }[] = []
 
+  // 1. Basic Validation
   if (batteries.length === 0) {
     return {
       isValid: false,
-      componentStates: components.map(c => ({
-        componentId: c.id, powered: false, currentFlow: 0, fault: 'open_circuit' as FaultType,
-      })),
+      componentStates: components.map(c => ({ componentId: c.id, powered: false, currentFlow: 0, fault: 'open_circuit' as FaultType })),
       faults: [{ componentId: 'circuit', fault: 'open_circuit', message: 'No power source — add a battery.' }],
       commentary: 'The city has no power plant. Without a battery, nothing can run.',
     }
@@ -39,160 +30,124 @@ export function simulate(graph: CircuitGraph): SimulationState {
   if (grounds.length === 0) {
     return {
       isValid: false,
-      componentStates: components.map(c => ({
-        componentId: c.id, powered: false, currentFlow: 0, fault: 'floating_ground' as FaultType,
-      })),
+      componentStates: components.map(c => ({ componentId: c.id, powered: false, currentFlow: 0, fault: 'floating_ground' as FaultType })),
       faults: [{ componentId: 'circuit', fault: 'floating_ground', message: 'No ground reference — add a ground.' }],
-      commentary: 'The city has no return network. Without a ground, current has nowhere to flow back.',
+      commentary: 'No return path. Current needs a ground to flow back.',
     }
   }
 
-  // Open switches break paths through them
-  const openSwitchIds = new Set(switches.filter(s => s.value === 0).map(s => s.id))
-
-  const activeEdges = edges.filter(
-    e => !openSwitchIds.has(e.sourceId) && !openSwitchIds.has(e.targetId),
-  )
-
-  // Build undirected adjacency list
+  // 2. Physics Constants
+  const vBat = batteries[0]?.value || 9
+  const openSwitchIds = new Set(components.filter(s => s.type === 'switch' && s.value === 0).map(s => s.id))
+  
+  // 3. Connectivity Analysis (Battery-First BFS)
   const adj = new Map<string, Set<string>>()
   for (const comp of components) adj.set(comp.id, new Set())
-  for (const edge of activeEdges) {
+  for (const edge of edges) {
+    if (openSwitchIds.has(edge.sourceId) || openSwitchIds.has(edge.targetId)) continue
     adj.get(edge.sourceId)?.add(edge.targetId)
     adj.get(edge.targetId)?.add(edge.sourceId)
   }
 
-  // BFS to find connected components
-  const visited = new Set<string>()
-  const groups: Set<string>[] = []
-
-  for (const comp of components) {
-    if (visited.has(comp.id)) continue
-    const group = new Set<string>()
-    const queue = [comp.id]
-    visited.add(comp.id)
-    while (queue.length > 0) {
-      const cur = queue.shift()!
-      group.add(cur)
-      const neighbors = adj.get(cur)
-      const nbs = neighbors ? Array.from(neighbors) : []
-      for (const nb of nbs) {
-        if (!visited.has(nb)) { visited.add(nb); queue.push(nb) }
+  const reachableFromBattery = new Set<string>()
+  const batteryQueue = batteries.map(b => b.id)
+  batteryQueue.forEach(id => reachableFromBattery.add(id))
+  
+  let head = 0
+  while (head < batteryQueue.length) {
+    const cur = batteryQueue[head++]
+    const neighbors = adj.get(cur) ?? []
+    for (const nb of neighbors) {
+      if (!reachableFromBattery.has(nb)) {
+        reachableFromBattery.add(nb)
+        batteryQueue.push(nb)
       }
     }
-    groups.push(group)
   }
 
-  const compMap = new Map(components.map(c => [c.id, c]))
-  const groundIds = new Set(grounds.map(g => g.id))
   const poweredIds = new Set<string>()
-  const completeGroups: Set<string>[] = []
+  const groundIds = new Set(grounds.map(g => g.id))
+  const isCircuitClosed = Array.from(reachableFromBattery).some(id => groundIds.has(id))
 
-  for (const group of groups) {
-    const hasBat = batteries.some(b => group.has(b.id))
-    const hasGnd = grounds.some(g => group.has(g.id))
-    if (hasBat && hasGnd) {
-      Array.from(group).forEach(id => poweredIds.add(id))
-      completeGroups.push(group)
-    }
+  if (isCircuitClosed) {
+    reachableFromBattery.forEach(id => poweredIds.add(id))
   }
 
-  // --- Short-circuit check ---
-  for (const group of completeGroups) {
-    for (const bat of batteries.filter(b => group.has(b.id))) {
-      if (hasDirectPathToGround(bat.id, adj, compMap, groundIds)) {
-        faults.push({
-          componentId: bat.id,
-          fault: 'short_circuit',
-          message: `Short circuit! ${bat.label || 'Battery'} connects directly to ground with no load.`,
-        })
-      }
-    }
-  }
+  // 4. Electrical Math (Simplification: Series-Primary)
+  const loadComponents = components.filter(c => poweredIds.has(c.id) && c.type !== 'battery' && c.type !== 'ground' && c.type !== 'wire')
+  const rTotal = loadComponents.reduce((sum, c) => sum + (c.type === 'resistor' || c.type === 'led' || c.type === 'potentiometer' ? (c.value || 220) : 10), 0) || 1
+  const iTotal = vBat / rTotal
 
-  // --- Missing-resistor check for LEDs ---
-  for (const led of leds) {
-    if (!poweredIds.has(led.id)) continue
-    const ledGroup = completeGroups.find(g => g.has(led.id))
-    if (ledGroup && !resistors.some(r => ledGroup.has(r.id))) {
-      faults.push({
-        componentId: led.id,
-        fault: 'missing_resistor',
-        message: `${led.label || 'LED'} has no current-limiting resistor — risk of burnout.`,
-      })
-    }
-  }
-
-  // --- Open-circuit faults for unpowered components ---
-  for (const comp of components) {
-    if (poweredIds.has(comp.id)) continue
-    if (comp.type === 'wire') continue
-    if (openSwitchIds.has(comp.id)) continue
-    const nb = adj.get(comp.id)
-    faults.push({
-      componentId: comp.id,
-      fault: 'open_circuit',
-      message: nb && nb.size > 0
-        ? `${comp.label || comp.type} is not on a complete circuit path.`
-        : `${comp.label || comp.type} is not connected to anything.`,
-    })
-  }
-
-  // --- Open switch notes ---
-  for (const sw of switches.filter(s => s.value === 0)) {
-    faults.push({
-      componentId: sw.id,
-      fault: 'open_circuit',
-      message: `${sw.label || 'Switch'} is open — path is broken.`,
-    })
-  }
-
-  const hasShort = faults.some(f => f.fault === 'short_circuit')
-
+  // 5. Component Logic & Faults
   const componentStates: ComponentState[] = components.map(comp => {
     const powered = poweredIds.has(comp.id)
-    const cFaults = faults.filter(f => f.componentId === comp.id)
-    const isShorted = cFaults.some(f => f.fault === 'short_circuit')
-    const isMissingRes = cFaults.some(f => f.fault === 'missing_resistor')
+    const resistance = comp.type === 'resistor' || comp.type === 'potentiometer' ? (comp.value || 220) : (comp.type === 'led' ? 20 : 0.1)
+    const voltage = powered ? (resistance / rTotal) * vBat : 0
+    const current = powered ? iTotal : 0
+    const power = voltage * current
 
-    let currentFlow = 0
-    if (powered) {
-      if (isShorted) currentFlow = 1.0
-      else if (isMissingRes) currentFlow = 0.9
-      else if (hasShort && comp.type !== 'battery' && comp.type !== 'ground') currentFlow = 0.1
-      else {
-        const flowMap: Record<string, number> = {
-          battery: 0.8, resistor: 0.5, led: 0.6,
-          capacitor: 0.4, motor: 0.7, ground: 0.8,
-          switch: 0.7, wire: 0.8,
-          inductor: 0.5, potentiometer: 0.5,
-          diode: 0.55, transistor: 0.6, mosfet: 0.6,
-          ldr: 0.45, thermistor: 0.45,
-          voltmeter: 0.1, ammeter: 0.8, multimeter: 0.1,
-          oscilloscope: 0.1, probe: 0.05,
-          buzzer: 0.65, relay: 0.6,
-          and_gate: 0.3, or_gate: 0.3, not_gate: 0.3,
-          xor_gate: 0.3, clock: 0.3,
-          ac_source: 0.8, transformer: 0.7,
-        }
-        currentFlow = flowMap[comp.type] ?? 0.6
-      }
+    // LED Overload (30mA threshold)
+    if (comp.type === 'led' && current > 0.03) {
+      faults.push({ componentId: comp.id, fault: 'overload', message: 'LED overloaded (>30mA). Use a resistor!' })
+    }
+
+    // Ammeter Check (Must be in series: deg >= 2)
+    if (comp.type === 'ammeter' && powered) {
+        const degree = adj.get(comp.id)?.size || 0
+        if (degree < 2) faults.push({ componentId: comp.id, fault: 'open_circuit', message: 'Ammeter not in series.' })
+    }
+
+    // Voltmeter Check (Across component: deg == 2)
+    if (comp.type === 'voltmeter' && powered) {
+        const degree = adj.get(comp.id)?.size || 0
+        if (degree !== 2) faults.push({ componentId: comp.id, fault: 'open_circuit', message: 'Voltmeter must be across a load.' })
     }
 
     return {
       componentId: comp.id,
       powered,
-      currentFlow,
-      fault: cFaults.length > 0 ? cFaults[0].fault : undefined,
+      currentFlow: powered ? Math.min(current * 10, 1) : 0,
+      voltage,
+      current,
+      resistance: powered ? resistance : undefined,
+      power,
+      fault: faults.find(f => f.componentId === comp.id)?.fault
     }
   })
 
+  // 6. Final State
   return {
-    isValid: faults.length === 0,
+    isValid: faults.length === 0 && isCircuitClosed,
     componentStates,
     faults,
-    commentary: buildCommentary(components, componentStates, faults, poweredIds),
+    vBat,
+    iTotal,
+    rTotal,
+    commentary: buildCommentary(vBat, iTotal, rTotal, componentStates, faults, isCircuitClosed)
   }
+}
+
+function buildCommentary(v: number, i: number, r: number, states: ComponentState[], faults: any[], closed: boolean): string {
+  if (!closed) return "Circuit is open. No complete path from Battery to Ground."
+  
+  const lines = [
+    `⚡ System Report:`,
+    `- Battery: ${v.toFixed(1)}V`,
+    `- Total Resistance: ${r >= 1000 ? (r/1000).toFixed(2)+'k' : r.toFixed(0)}Ω`,
+    `- Total Current: ${(i*1000).toFixed(1)}mA`,
+    ``
+  ]
+
+  if (faults.length > 0) {
+    lines.push(`⚠️ Faults Detected:`)
+    faults.forEach(f => lines.push(`- ${f.message}`))
+  } else {
+    lines.push(`✅ All systems operational.`)
+    const leds = states.filter(s => s.powered && s.componentId.includes('led')) // simplified check
+    if (leds.length > 0) lines.push(`- City districts are illuminated.`)
+  }
+
+  return lines.join('\n')
 }
 
 /** BFS from battery following only wires — returns true if ground is reachable without a load. */
