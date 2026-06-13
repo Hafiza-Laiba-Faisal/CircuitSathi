@@ -14,8 +14,14 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
   if (file) {
     try {
       if (file.mimetype === 'application/pdf') {
-        const data = await pdf(file.buffer)
-        manualText = data.text
+        // Handle both common resolutions of pdf-parse
+        const pdfParser = typeof pdf === 'function' ? pdf : pdf.default;
+        if (typeof pdfParser === 'function') {
+          const data = await pdfParser(file.buffer)
+          manualText = data.text
+        } else {
+          throw new Error('pdf-parse is not a valid function');
+        }
       } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const result = await mammoth.extractRawText({ buffer: file.buffer })
         manualText = result.value
@@ -24,7 +30,7 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
       }
     } catch (err) {
       console.error('File Parsing Error:', err)
-      return res.status(500).json({ error: 'Failed to parse the uploaded file' })
+      return res.status(500).json({ error: 'Failed to parse the uploaded file. Ensure it is a valid PDF/Docx.' })
     }
   }
 
