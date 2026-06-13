@@ -224,6 +224,7 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
   const simulationState = useCircuitStore(s => s.simulationState)
   const cs = simulationState?.componentStates.find(c => c.componentId === id)
 
+  const isTeaching = data.isTeaching === true
   const powered = cs?.powered ?? false
   const currentFlow = cs?.currentFlow ?? 0
   const fault = cs?.fault
@@ -239,7 +240,11 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
     ? 'rgba(127,29,29,0.6)'
     : powered
       ? `${cfg.color}22`
-      : 'rgba(31,41,55,0.8)'
+    : isTeaching
+      ? 'rgba(251,191,36,0.15)'
+      : powered
+        ? `${cfg.color}22`
+        : 'rgba(31,41,55,0.8)'
 
   const unitLabel =
     data.componentType === 'battery' ? (data.value != null ? `${Number(data.value).toFixed(1)}V` : '') :
@@ -252,6 +257,7 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
     <div
       className={`relative px-3 py-2 rounded-lg border-2 min-w-[80px] text-center shadow-lg transition-all
         ${selected ? 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-gray-900' : ''}
+        ${isTeaching ? 'animate-pulse scale-110 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : ''}
         ${fault ? 'animate-pulse' : ''}`}
       style={{ backgroundColor: bg, borderColor }}
     >
@@ -354,10 +360,29 @@ function DemoCard({ demo, onLoad }: { demo: DemoCircuit; onLoad: (g: CircuitGrap
 
 function BuilderInner() {
   const rfInstance = useRef<ReactFlowInstance | null>(null)
-  const { setCircuitGraph, pendingLoad, clearPendingLoad, setSelectedComponentId, selectedComponentId, activeMode, requestCircuitLoad } = useCircuitStore()
+  const { setCircuitGraph, pendingLoad, clearPendingLoad, setSelectedComponentId, selectedComponentId, activeMode, requestCircuitLoad, activeToolbarComponent } = useCircuitStore()
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  
+  // 🔄 Sync with store's canvasNodes/Edges for AI-driven animations
+  const storeNodes = useCircuitStore(s => s.canvasNodes)
+  const storeEdges = useCircuitStore(s => s.canvasEdges)
+
+  useEffect(() => {
+    // Only sync if the store has more nodes/edges than we do, or if they are different
+    // This allows the animation to propagate to the local React Flow state
+    if (storeNodes.length !== nodes.length) {
+      setNodes([...storeNodes])
+    }
+  }, [storeNodes, setNodes, nodes.length])
+
+  useEffect(() => {
+    if (storeEdges.length !== edges.length) {
+      setEdges([...storeEdges])
+    }
+  }, [storeEdges, setEdges, edges.length])
+
   const [showDemos, setShowDemos] = useState(false)
 
   /* ---------- sync React Flow → Zustand store ---------- */
@@ -569,6 +594,8 @@ function BuilderInner() {
           }}>
             {PALETTE.map(type => {
               const c = CONFIGS[type]
+              const isActive = activeToolbarComponent === type
+              
               return (
                 <div
                   key={type}
@@ -580,21 +607,29 @@ function BuilderInner() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
                     padding: '4px 8px',
-                    background: '#0f172a',
-                    border: `2px solid ${c.color}44`,
+                    background: isActive ? `${c.color}33` : '#0f172a',
+                    border: `2px solid ${isActive ? '#fbbf24' : `${c.color}44`}`,
                     borderRadius: 2,
                     cursor: 'grab',
                     fontFamily: "'Press Start 2P', monospace",
                     fontSize: 7,
-                    color: c.color,
-                    transition: 'all 0.15s',
+                    color: isActive ? '#fbbf24' : c.color,
+                    transition: 'all 0.3s ease',
                     userSelect: 'none',
+                    boxShadow: isActive ? '0 0 15px #fbbf24' : 'none',
+                    transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                    position: 'relative',
+                    zIndex: isActive ? 50 : 1
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = c.color; e.currentTarget.style.boxShadow = `0 0 6px ${c.color}44` }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = `${c.color}44`; e.currentTarget.style.boxShadow = 'none' }}
+                  className={isActive ? 'animate-bounce' : ''}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = c.color; e.currentTarget.style.boxShadow = `0 0 6px ${c.color}44` } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = `${c.color}44`; e.currentTarget.style.boxShadow = 'none' } }}
                 >
                   <span style={{ fontSize: 11 }}>{c.symbol}</span>
                   <span>{c.label}</span>
+                  {isActive && (
+                     <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
+                  )}
                 </div>
               )
             })}

@@ -1,3 +1,14 @@
+// Polyfill for DOMMatrix/Canvas essentials required by pdfjs-dist (used in pdf-parse)
+// MUST BE AT THE VERY TOP BEFORE ANY OTHER IMPORTS
+if (typeof (global as any).DOMMatrix === 'undefined') {
+  (global as any).DOMMatrix = class DOMMatrix {
+    constructor() { }
+    static fromFloat32Array() { return new DOMMatrix(); }
+  };
+}
+if (typeof (global as any).Path2D === 'undefined') { (global as any).Path2D = class Path2D { }; }
+if (typeof (global as any).ImageData === 'undefined') { (global as any).ImageData = class ImageData { }; }
+
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'

@@ -21,6 +21,8 @@ export default function TutorPanel() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [learningTopic, setLearningTopic] = useState('')
   const loadStepSolution = useCircuitStore(s => s.loadStepSolution)
+  const voiceEnabled = useCircuitStore(s => s.voiceEnabled)
+  const setVoiceEnabled = useCircuitStore(s => s.setVoiceEnabled)
 
   const handleStartTutorial = async (mode: 'manual' | 'topic') => {
     if (mode === 'manual' && !manualText && !selectedFile) return
@@ -41,9 +43,16 @@ export default function TutorPanel() {
       const response = await axios.post<{ steps: any[] }>('http://localhost:3001/api/tutor/parse', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      setTutorialSteps(response.data.steps)
+      const steps = response.data.steps
+      setTutorialSteps(steps)
       setIsTutorialMode(true)
       setActiveStepIdx(0)
+      
+      // Auto-load the first step's circuit if it exists
+      if (steps[0]?.initialGraph) {
+        console.log('[Tutor] Starting animated circuit build sequence...')
+        useCircuitStore.getState().animateCircuitBuild(steps[0].initialGraph)
+      }
     } catch (err) {
       console.error(err)
       setError('AI failed to generate tutorial. Try again!' as any)
@@ -57,7 +66,16 @@ export default function TutorPanel() {
   if (!isTutorialMode) {
     return (
       <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl p-6 shadow-2xl z-40 animate-in fade-in slide-in-from-right-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
-        <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest mb-4">AI Sathi Tutor</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest">AI Sathi Tutor</h3>
+          <button 
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={`p-2 rounded-full transition-all ${voiceEnabled ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-white/5 text-slate-500 hover:text-slate-300'}`}
+            title={voiceEnabled ? 'Voice Mode On' : 'Voice Mode Off'}
+          >
+            {voiceEnabled ? '🎧' : '🔇'}
+          </button>
+        </div>
         
         {/* Quick Learn Mode */}
         <div className="mb-6 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">

@@ -42,6 +42,8 @@ interface CircuitStore {
   activeStepIdx: number
   isTutorialMode: boolean
   manualText: string | null
+  voiceEnabled: boolean
+  activeToolbarComponent: ComponentType | null
 
   setActiveMode: (mode: ActiveMode) => void
   setCircuitGraph: (graph: CircuitGraph) => void
@@ -67,13 +69,19 @@ interface CircuitStore {
   setIsTutorialMode: (active: boolean) => void
   setManualText: (text: string | null) => void
   loadStepSolution: (idx: number) => void
+  animateCircuitBuild: (graph: CircuitGraph) => Promise<void>
+  setVoiceEnabled: (enabled: boolean) => void
 }
 
 const emptyGraph: CircuitGraph = { components: [], edges: [] }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 export const useCircuitStore = create<CircuitStore>((set, get) => ({
   activeMode: 'build',
+  activeToolbarComponent: null,
   circuitGraph: emptyGraph,
+  // ... (rest of initial state)
   simulationState: null,
   selectedComponentId: null,
   isNarrating: false,
@@ -96,6 +104,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   activeStepIdx: 0,
   isTutorialMode: false,
   manualText: null,
+  voiceEnabled: false,
 
   setActiveMode: (mode) => set({ activeMode: mode }),
 
@@ -171,6 +180,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   setActiveStepIdx: (idx) => set({ activeStepIdx: idx }),
   setIsTutorialMode: (active) => set({ isTutorialMode: active }),
   setManualText: (text) => set({ manualText: text }),
+  
   loadStepSolution: (idx) => {
     const { tutorialSteps } = get()
     const step = tutorialSteps[idx]
@@ -178,4 +188,56 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
       set({ pendingLoad: step.initialGraph })
     }
   },
+
+  animateCircuitBuild: async (graph) => {
+    // 1. Clear current view
+    set({ canvasNodes: [], canvasEdges: [], activeToolbarComponent: null })
+    await sleep(400)
+
+    // 2. Add components one by one
+    const newNodes: RFNode[] = []
+    for (const comp of graph.components) {
+      // Highlight toolbar
+      set({ activeToolbarComponent: comp.type })
+      await sleep(800)
+
+      const newNode: RFNode = {
+        id: comp.id,
+        type: 'circuitNode',
+        position: comp.position,
+        data: { 
+          label: comp.label, 
+          componentType: comp.type, 
+          value: comp.value,
+          isTeaching: true // Visual flag for 'AI is placing this'
+        },
+      }
+      newNodes.push(newNode)
+      set({ canvasNodes: [...newNodes] })
+      await sleep(300)
+    }
+
+    set({ activeToolbarComponent: null })
+    await sleep(500)
+
+    // 3. Add edges
+    const newEdges: RFEdge[] = []
+    for (const edge of graph.edges) {
+      newEdges.push({
+        id: edge.id,
+        source: edge.sourceId,
+        target: edge.targetId,
+        animated: true, // Make wires look live
+        style: { stroke: '#fbbf24', strokeWidth: 3 }
+      })
+      set({ canvasEdges: [...newEdges] })
+      await sleep(400)
+    }
+
+    // Finalize state
+    const finalGraph = get().canvasToCircuitGraph()
+    set({ circuitGraph: finalGraph, simulationState: simulate(finalGraph) })
+  },
+
+  setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
 }))

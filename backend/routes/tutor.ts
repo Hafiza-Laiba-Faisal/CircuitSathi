@@ -2,7 +2,7 @@ import express from 'express'
 import multer from 'multer'
 const pdf = require('pdf-parse')
 import mammoth from 'mammoth'
-import { llm } from '../lib/ai'
+import { llm, llmWithTools, SATHI_TOOLS } from '../lib/ai'
 
 const router = express.Router()
 const upload = multer({ storage: multer.memoryStorage() })
@@ -28,58 +28,76 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
     }
   }
 
-  console.log(`[Tutor] Parsing manual. Text length: ${manualText?.length || 0}`)
+  console.log(`[Tutor] Parsing request. Text length: ${manualText?.length || 0}`)
 
   if (!manualText || manualText.trim().length === 0) {
     return res.status(400).json({ error: 'Manual text or file is required' })
   }
 
-  const systemPrompt = `You are an AI Physics Tutor (Sathi/Dost). 
-Your goal is to parse a lab manual OR a general topic and convert it into a structured tutorial.
+  // ─── System Prompt: Instructs Sathi HOW to use its tools ───────────────────
+  const systemPrompt = `You are Sathi, a multilingual AI Physics Tutor.
+  
+  YOUR GOAL: Create a high-fidelity STEM tutorial project.
+  
+  REQUIRED ACTION:
+  1. Detect input language (English/Urdu).
+  2. Call "generate_tutorial" EXACTLY ONCE with the full starting_circuit and 3-5 tutorial steps.
+  3. Ensure the tutorial is comprehensive and follows academic standards.`
 
-REQUIRED JSON OUTPUT FORMAT:
-{
-  "steps": [
+  const prompt = `Student's topic or lab manual content:\n\n${manualText}`
+
+  // ─── Phase 1: Try the Advanced Agentic Agent ────────────────────────────
+  let result = await llmWithTools(prompt, systemPrompt, SATHI_TOOLS)
+
+  // ─── Phase 2: Fallback to Structured JSON if Agent fails ────────────────
+  if (!result) {
+    console.warn('\x1b[33m[Tutor] Phase 1 (Agentic) failed. Triggering Phase 2 (Structured JSON Fallback)...\x1b[0m')
+    const fallbackPrompt = `TOPIC: ${manualText}
+    
+    CRITICAL: Provide the tutorial steps as a VALID JSON object ONLY. 
+    DO NOT include conversational filler.
+    
+    SCHEMA:
     {
-      "id": "string",
-      "title": "short title",
-      "instruction": "clear construction task",
-      "explanation": "bilingual explanation (English + Urdu/Hindi)",
-      "goalCriteria": { "requiredComponents": ["battery", "resistor", etc], "powered": true },
-      "initialGraph": { 
-        "components": [
-          { "id": "c1", "type": "battery", "label": "B1", "value": 9, "position": {"x": 100, "y": 100} },
-          ...
-        ],
-        "edges": [
-          { "id": "e1", "sourceId": "c1", "targetId": "c2", "sourcePin": "positive", "targetPin": "a" },
-          ...
-        ]
+      "steps": [
+        {
+          "title": "Short title",
+          "instruction": "Action for student",
+          "explanation": "Scientific explanation"
+        }
+      ]
+    }`
+    
+    const fallbackResult = await llm(fallbackPrompt, 'You are an AI Physics Tutor. You MUST output VALID JSON ONLY. No markdown blocks.', true)
+    
+    if (fallbackResult) {
+      try {
+        const parsed = JSON.parse(fallbackResult)
+        result = {
+          steps: parsed.steps.map((s: any) => ({
+            id: Math.random().toString(36).substr(2, 9),
+            ...s,
+            goalCriteria: { requiredComponents: [], powered: true }
+          })),
+          finalMessage: 'Structured lesson loaded.',
+          circuits: []
+        }
+      } catch (e) {
+        console.error('[Tutor] Fallback JSON also failed.')
       }
     }
-  ]
-}
-
-RULES:
-1. "initialGraph" should be a COMPLETE, functional solution for that specific step.
-2. If the user input is a simple topic (e.g., "Ohm's Law"), create a logical 3-step progression from basic to advanced.
-3. Coordinates for components should be spaced out (approx 150-200 units apart).
-4. Use a friendly, encouraging Sathi tone. Use Urdu/Hindi script for the Urdu parts.`
-
-  const prompt = `Topic or Manual Content: \n\n${manualText}`
-
-  const result = await llm(prompt, systemPrompt, true)
-  
-  if (!result) {
-    return res.status(500).json({ error: 'AI failed to parse the manual content' })
   }
 
-  try {
-    const json = JSON.parse(result)
-    res.json(json)
-  } catch (e) {
-    res.status(500).json({ error: 'Invalid JSON response from AI. Please try again with clear text.' })
+  if (!result || result.steps.length === 0) {
+    return res.status(500).json({ error: 'AI is currently overloaded. Please try a simpler topic.' })
   }
+
+  console.log(`[Tutor] Generated ${result.steps.length} steps.`)
+
+  return res.json({
+    steps: result.steps,
+    summary: result.finalMessage
+  })
 })
 
 export default router

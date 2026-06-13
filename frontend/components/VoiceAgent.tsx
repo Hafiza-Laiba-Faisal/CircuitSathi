@@ -10,21 +10,20 @@ const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'agent_8401kkrgj
 export default function VoiceAgent() {
   const [apiKey, setApiKey] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const [autoNarrate, setAutoNarrate] = useState(true)
   const [isSpeaking, setIsSpeaking] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentAudioUrlRef = useRef<string | null>(null)
 
-  const { circuitGraph, simulationState, currentNarration } = useCircuitStore()
+  const { circuitGraph, simulationState, currentNarration, voiceEnabled, setVoiceEnabled } = useCircuitStore()
 
   // Load saved settings from localStorage
   useEffect(() => {
     const savedKey = localStorage.getItem('elevenlabs_api_key') || ''
     const savedAutoNarrate = localStorage.getItem('elevenlabs_auto_narrate')
     setApiKey(savedKey)
-    // Default to ON unless the user explicitly turned it off
-    if (savedAutoNarrate !== null) setAutoNarrate(savedAutoNarrate === 'true')
+    // Default to global voiceEnabled if not set
+    if (savedAutoNarrate !== null) setVoiceEnabled(savedAutoNarrate === 'true')
     audioRef.current = new Audio()
     audioRef.current.onended = () => {
       setIsSpeaking(false)
@@ -199,13 +198,13 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
   // Auto-narrate: speak every new story step automatically
   const lastNarrationRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!autoNarrate || !apiKey || !currentNarration) return
+    if (!voiceEnabled || !apiKey || !currentNarration) return
     if (currentNarration === lastNarrationRef.current) return
     lastNarrationRef.current = currentNarration
     // Stop any currently playing audio so the new step starts immediately
     if (isSpeaking) stopSpeak()
     speak(currentNarration)
-  }, [currentNarration, autoNarrate, apiKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentNarration, voiceEnabled, apiKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Agent status colors ──────────────────────────────────────────────────────
   const STATUS_COLOR: Record<string, string> = {
@@ -266,20 +265,20 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#94a3b8' }}>Auto-narrate stories</span>
             <button
-              onClick={() => setAutoNarrate(a => {
-                const next = !a
+              onClick={() => {
+                const next = !voiceEnabled
                 localStorage.setItem('elevenlabs_auto_narrate', String(next))
-                return next
-              })}
+                setVoiceEnabled(next)
+              }}
               style={{
-                background: autoNarrate ? 'rgba(34,197,94,0.15)' : '#1e293b',
-                border: `2px solid ${autoNarrate ? '#22c55e' : '#475569'}`,
-                color: autoNarrate ? '#22c55e' : '#64748b',
+                background: voiceEnabled ? 'rgba(34,197,94,0.15)' : '#1e293b',
+                border: `2px solid ${voiceEnabled ? '#22c55e' : '#475569'}`,
+                color: voiceEnabled ? '#22c55e' : '#64748b',
                 fontFamily: "'Press Start 2P', monospace", fontSize: 6,
                 padding: '4px 10px', borderRadius: 4, cursor: 'pointer',
               }}
             >
-              {autoNarrate ? 'ON' : 'OFF'}
+              {voiceEnabled ? 'ON' : 'OFF'}
             </button>
           </div>
 
@@ -405,7 +404,7 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
       </div>
 
       {/* Auto-narrate indicator */}
-      {autoNarrate && !showSettings && (
+      {voiceEnabled && !showSettings && (
         <div style={{
           fontFamily: "'Press Start 2P', monospace",
           fontSize: 5,
