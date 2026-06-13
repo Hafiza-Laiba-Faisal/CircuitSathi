@@ -43,12 +43,16 @@ router.post('/parse', upload.single('manualFile'), async (req, res) => {
   // ─── System Prompt: Instructs Sathi HOW to use its tools ───────────────────
   const systemPrompt = `You are CircuitSathi, an expert AI Physics & Electronics Tutor.
   
+  LANGUAGE LOGIC:
+  - Detect input language.
+  - IF USER USES ROMAN URDU (e.g., "circuit banado") -> RESPOND IN URDU SCRIPT (اردو).
+  - OTHERWISE -> RESPOND IN ENGLISH.
+  
   FOR EVERY USER REQUEST:
-  1. Detect input language (English/Urdu).
-  2. Explain the concept clearly.
-  3. Create 3-5 interactive learning steps.
-  4. Create a complete, functional circuit schematic.
-  5. Return ONLY the "generate_tutorial" tool call.
+  1. Explain the concept clearly.
+  2. Create 3-5 interactive learning steps.
+  3. Create a complete, functional circuit schematic.
+  4. Return ONLY the "generate_tutorial" tool call.
   
   IF USER UPLOADS A LAB MANUAL:
   - Read experiment objective and explain theory.
