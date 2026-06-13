@@ -9,15 +9,226 @@ import { ComponentType as CType } from '../../shared/types'
 /*  Building appearance per component type                             */
 /* ------------------------------------------------------------------ */
 
-const THEME: Record<CType, { color: number; emissive: number; height: number; label: string }> = {
-  battery:   { color: 0x22c55e, emissive: 0x14532d, height: 2.4, label: 'Power Plant' },
-  resistor:  { color: 0xf59e0b, emissive: 0x451a03, height: 1.4, label: 'Bottleneck' },
-  led:       { color: 0xfacc15, emissive: 0x854d0e, height: 1.8, label: 'District' },
-  capacitor: { color: 0x3b82f6, emissive: 0x1e3a5f, height: 1.6, label: 'Reservoir' },
-  motor:     { color: 0xa78bfa, emissive: 0x2e1065, height: 2.0, label: 'Factory' },
-  ground:    { color: 0x94a3b8, emissive: 0x1e293b, height: 0.6, label: 'Return Hub' },
-  switch:    { color: 0xfb923c, emissive: 0x431407, height: 1.2, label: 'Gate' },
-  wire:      { color: 0x6b7280, emissive: 0x1f2937, height: 0.4, label: 'Junction' },
+// const THEME: Record<CType, { color: number; emissive: number; height: number; label: string }> = {
+//   battery:   { color: 0x22c55e, emissive: 0x14532d, height: 2.4, label: 'Power Plant' },
+//   resistor:  { color: 0xf59e0b, emissive: 0x451a03, height: 1.4, label: 'Bottleneck' },
+//   led:       { color: 0xfacc15, emissive: 0x854d0e, height: 1.8, label: 'District' },
+//   capacitor: { color: 0x3b82f6, emissive: 0x1e3a5f, height: 1.6, label: 'Reservoir' },
+//   motor:     { color: 0xa78bfa, emissive: 0x2e1065, height: 2.0, label: 'Factory' },
+//   ground:    { color: 0x94a3b8, emissive: 0x1e293b, height: 0.6, label: 'Return Hub' },
+//   switch:    { color: 0xfb923c, emissive: 0x431407, height: 1.2, label: 'Gate' },
+//   wire:      { color: 0x6b7280, emissive: 0x1f2937, height: 0.4, label: 'Junction' },
+// }
+
+const THEME: Record<CType, {
+  color: number
+  emissive: number
+  height: number
+  label: string
+}> = {
+
+  battery: {
+    color: 0x00ff88,
+    emissive: 0x00aa55,
+    height: 2.4,
+    label: 'Power Plant',
+  },
+
+  resistor: {
+    color: 0xff8800,
+    emissive: 0xcc5500,
+    height: 1.4,
+    label: 'Traffic Control',
+  },
+
+  led: {
+    color: 0xffff00,
+    emissive: 0xffcc00,
+    height: 1.8,
+    label: 'City District',
+  },
+
+  capacitor: {
+    color: 0x00aaff,
+    emissive: 0x0077cc,
+    height: 1.8,
+    label: 'Water Reservoir',
+  },
+
+  motor: {
+    color: 0xaa66ff,
+    emissive: 0x7722cc,
+    height: 2.2,
+    label: 'Factory',
+  },
+
+  ground: {
+    color: 0x888888,
+    emissive: 0x444444,
+    height: 0.5,
+    label: 'Return Hub',
+  },
+
+  switch: {
+    color: 0xff6600,
+    emissive: 0xcc4400,
+    height: 1.2,
+    label: 'Gate',
+  },
+
+  wire: {
+    color: 0x00e5ff,
+    emissive: 0x0088aa,
+    height: 0.3,
+    label: 'Road',
+  },
+
+  inductor: {
+    color: 0x22c55e,
+    emissive: 0x166534,
+    height: 1.8,
+    label: 'Magnetic Station',
+  },
+
+  potentiometer: {
+    color: 0xfb923c,
+    emissive: 0xc2410c,
+    height: 1.6,
+    label: 'Control Tower',
+  },
+
+  diode: {
+    color: 0xef4444,
+    emissive: 0xb91c1c,
+    height: 1.4,
+    label: 'One Way Street',
+  },
+
+  transistor: {
+    color: 0x3b82f6,
+    emissive: 0x1d4ed8,
+    height: 2.2,
+    label: 'Traffic Controller',
+  },
+
+  mosfet: {
+    color: 0x2563eb,
+    emissive: 0x1e40af,
+    height: 2.4,
+    label: 'Power Controller',
+  },
+
+  ldr: {
+    color: 0xfacc15,
+    emissive: 0xca8a04,
+    height: 1.5,
+    label: 'Light Sensor',
+  },
+
+  thermistor: {
+    color: 0xff4444,
+    emissive: 0xcc2222,
+    height: 1.5,
+    label: 'Heat Sensor',
+  },
+
+  voltmeter: {
+    color: 0x14b8a6,
+    emissive: 0x0f766e,
+    height: 1.3,
+    label: 'Voltage Lab',
+  },
+
+  ammeter: {
+    color: 0x06b6d4,
+    emissive: 0x0e7490,
+    height: 1.3,
+    label: 'Current Lab',
+  },
+
+  multimeter: {
+    color: 0x0891b2,
+    emissive: 0x155e75,
+    height: 1.4,
+    label: 'Diagnostic Center',
+  },
+
+  oscilloscope: {
+    color: 0x22d3ee,
+    emissive: 0x0891b2,
+    height: 2.0,
+    label: 'Wave Observatory',
+  },
+
+  probe: {
+    color: 0x94a3b8,
+    emissive: 0x475569,
+    height: 1.0,
+    label: 'Inspection Post',
+  },
+
+  buzzer: {
+    color: 0xf43f5e,
+    emissive: 0xbe123c,
+    height: 1.5,
+    label: 'Alarm Station',
+  },
+
+  relay: {
+    color: 0x8b5cf6,
+    emissive: 0x6d28d9,
+    height: 2.0,
+    label: 'Power Substation',
+  },
+
+  and_gate: {
+    color: 0x10b981,
+    emissive: 0x047857,
+    height: 1.7,
+    label: 'AND Hub',
+  },
+
+  or_gate: {
+    color: 0x3b82f6,
+    emissive: 0x1d4ed8,
+    height: 1.7,
+    label: 'OR Hub',
+  },
+
+  not_gate: {
+    color: 0xef4444,
+    emissive: 0xb91c1c,
+    height: 1.7,
+    label: 'NOT Hub',
+  },
+
+  xor_gate: {
+    color: 0xf59e0b,
+    emissive: 0xb45309,
+    height: 1.8,
+    label: 'XOR Hub',
+  },
+
+  clock: {
+    color: 0xe879f9,
+    emissive: 0xc026d3,
+    height: 2.2,
+    label: 'Clock Tower',
+  },
+
+  ac_source: {
+    color: 0x38bdf8,
+    emissive: 0x0284c7,
+    height: 2.8,
+    label: 'AC Power Station',
+  },
+
+  transformer: {
+    color: 0x7c3aed,
+    emissive: 0x5b21b6,
+    height: 3.0,
+    label: 'Power Grid',
+  },
 }
 
 /* ------------------------------------------------------------------ */

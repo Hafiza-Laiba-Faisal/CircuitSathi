@@ -41,16 +41,17 @@ export default function Home() {
       </header>
 
       {/* 2. DYNAMIC WORKSPACE */}
-      <div className="flex flex-1 flex-col sm:flex-row">
+      <div className="flex flex-1 flex-col sm:flex-row" style={{ '--pct': schematicWidthPct } as any}>
         
         {/* Left/Middle Column: Labs & Bottom Tutor */}
         <div className="flex flex-col flex-1 transition-all duration-500">
           
-          <main className="flex-1 flex p-3 gap-3 min-h-[500px]">
+          <main className="flex-1 flex flex-col lg:flex-row p-3 gap-3 min-h-[500px]">
             {/* Schematic Editor */}
             <section 
-              style={{ width: `${schematicWidthPct}%` }}
-              className="flex flex-col glass-panel rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] relative group border border-white/5 bg-black/40 transition-all duration-500 ease-in-out"
+              style={{ flexBasis: `var(--desk-w)` } as any}
+              className="lg:[--desk-w:calc(var(--pct)*1%)] [--pct:50] w-full lg:w-auto h-[50vh] lg:h-auto flex flex-col glass-panel rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] relative group border border-white/5 bg-black/40 transition-all duration-500 ease-in-out"
+  // this is handled in style above
             >
               <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -63,9 +64,9 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Draggable Splitter */}
+            {/* Draggable Splitter (Hidden on mobile) */}
             <div 
-              className="w-3 flex flex-col justify-center items-center cursor-col-resize hover:bg-white/10 active:bg-white/20 rounded-full transition-colors z-50 group"
+              className="hidden lg:flex w-3 flex-col justify-center items-center cursor-col-resize hover:bg-white/10 active:bg-white/20 rounded-full transition-colors z-50 group"
               onMouseDown={(e) => { e.preventDefault(); setIsDragging(true) }}
             >
                <div className={`w-1 h-12 rounded-full transition-colors ${isDragging ? 'bg-amber-400' : 'bg-slate-700 group-hover:bg-amber-400/50'}`} />
@@ -73,8 +74,8 @@ export default function Home() {
 
             {/* Simulation View */}
             <section 
-              style={{ width: `calc(${100 - schematicWidthPct}% - 12px)` }}
-              className="flex flex-col glass-panel rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] relative border border-white/5 bg-black/40 transition-all duration-500 ease-in-out"
+              style={{ flexBasis: `var(--desk-w)` } as any}
+              className="lg:[--desk-w:calc((100-var(--pct))*1%-12px)] [--pct:50] w-full lg:w-auto h-[50vh] lg:h-auto flex flex-col glass-panel rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] relative border border-white/5 bg-black/40 transition-all duration-500 ease-in-out"
             >
               <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -92,8 +93,10 @@ export default function Home() {
 
           {/* Bottom AI Tutor (if active) */}
           {tutorLayout === 'bottom' && (
-            <footer className={`${isTutorialMode ? 'h-[32%]' : 'h-[250px]'} flex-shrink-0 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] border-t border-white/10 bg-[#080c16]/95 backdrop-blur-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.8)] z-[60]`}>
-              <TutorPanel />
+            <footer className={`${isTutorialMode ? 'h-[320px]' : 'h-[250px]'} flex-shrink-0 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] border-t border-white/10 bg-[#080c16]/95 backdrop-blur-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.8)] z-[60] overflow-hidden`}>
+              <div className="h-full overflow-y-auto custom-scrollbar">
+                <TutorPanel />
+              </div>
             </footer>
           )}
         </div>

@@ -33,7 +33,7 @@ interface SceneData {
   isEmpty: boolean
   circuitContext: { vBat: number; rTotal: number; current: number }
   edges: { sourceId: string; targetId: string }[]
-  isClosedCircuit: boolean
+  paths: PathPt[][] // Multiple paths for multiple circuits
 }
 
 interface PathPt {
@@ -58,14 +58,25 @@ interface ChatEntry {
   timestamp: number
 }
 
+interface HeroState {
+  id: number
+  container: any
+  frames: any[]
+  frame: number
+  path: PathPt[]
+  pathIdx: number
+  progress: number
+  pauseMs: number
+  visitedLandmarks: Set<string>
+  currentStoryLandmark: string | null
+  introShown: boolean
+  speechBubble: any
+}
+
 interface PixiState {
   app: any
   world: any
-  heroContainer: any
-  heroSprite: any
-  heroFrames: any[] // walk frame Graphics
-  heroFrame: number
-  speechBubbleContainer: any
+  heroes: HeroState[]
   dayNightOverlay: any
   pathContainer: any
   landmarksContainer: any
@@ -73,19 +84,12 @@ interface PixiState {
   particlesContainer: any
   uiContainer: any
   currentScene: SceneData | null
-  heroPath: PathPt[]
-  heroPathIdx: number
-  heroProgress: number
-  heroPauseMs: number
   elapsed: number
   animTick: number
   particles: Particle[]
-  visitedLandmarks: Set<string>
-  currentStoryLandmark: string | null
   skipRequested: boolean
-  voltageDropPopup: { text: string; yOffset: number; ageMs: number } | null
+  voltageDropPopup: { text: string; heroId: number; yOffset: number; ageMs: number } | null
   voltageDropPopupContainer: any
-  heroIntroShown: boolean
   biomeTextures: Record<string, any>
 }
 
@@ -198,14 +202,13 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
   const comps = graph.components
   const emptyCtx = { vBat: 0, rTotal: 1, current: 0 }
   if (comps.length === 0) {
-    return { biome: 'forest', landmarks: [], heroSpeed: 150, isEmpty: true, circuitContext: emptyCtx, edges: [], isClosedCircuit: false }
+    return { biome: 'forest', landmarks: [], heroSpeed: 150, isEmpty: true, circuitContext: emptyCtx, edges: [], paths: [] }
   }
 
   const faultTypes = sim?.faults.map(f => f.fault) ?? []
   let biome: BiomeType = 'forest'
   if (faultTypes.includes('short_circuit')) biome = 'lava'
   else if (faultTypes.includes('open_circuit')) biome = 'void'
-  else if (comps.some(c => c.type === 'capacitor')) biome = 'dungeon'
   else if (comps.some(c => c.type === 'resistor' && (c.value ?? 0) > 1000)) biome = 'desert'
   else {
     const avg = (sim?.componentStates ?? [])
@@ -229,50 +232,84 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
   const scaledH = rangeY * scale
   const worldOffsetX = MARGIN_X + (USABLE_W - scaledW) / 2
   const worldOffsetY = MARGIN_Y + (USABLE_H - scaledH) / 2
-  const toWorldX = (cx: number) => worldOffsetX + (cx - minX) * scale
-  const toWorldY = (cy: number) => worldOffsetY + (cy - minY) * scale
 
-  // Compute circuit physics: voltage drops, series current
-  const battery = comps.find(c => c.type === 'battery')
-  const vBat = battery?.value ?? 6
-  const resistors = comps.filter(c => c.type === 'resistor')
-  const rTotal = resistors.reduce((s, c) => s + (c.value ?? 0), 0) || 1
-  const seriesCurrent = vBat / rTotal
-  const voltageDrops = new Map<string, number>()
-  resistors.forEach(r => {
-    const ri = r.value ?? 0
-    if (ri > 0) voltageDrops.set(r.id, (vBat * ri) / rTotal)
-  })
-  const circuitContext = { vBat, rTotal, current: seriesCurrent }
-
-  const landmarks: LandmarkData[] = comps.map(comp => {
-    const x = toWorldX(comp.position.x)
-    const y = toWorldY(comp.position.y)
-    const cs = sim?.componentStates.find(s => s.componentId === comp.id)
-    const fault = sim?.faults.find(f => f.componentId === comp.id)?.fault ?? null
-    const voltageDrop = comp.type === 'resistor' ? voltageDrops.get(comp.id) : undefined
-    return {
-      id: comp.id, type: comp.type, label: comp.label ?? comp.type,
-      value: comp.value, voltageDrop, x, y,
-      powered: cs?.powered ?? false,
-      currentFlow: cs?.currentFlow ?? 0,
-      fault,
-      isClosed: comp.type === 'switch' ? (cs?.powered ?? false) : undefined,
+  // ── Multiple Loop Detection ───────────────────────────────────────────────
+  const adj = new Map<string, string[]>()
+  comps.forEach(c => adj.set(c.id, []))
+  graph.edges.forEach(e => {
+    if (adj.has(e.sourceId) && adj.has(e.targetId)) {
+      adj.get(e.sourceId)!.push(e.targetId)
+      adj.get(e.targetId)!.push(e.sourceId)
     }
   })
 
-  // Is the circuit closed? Battery and ground must both be powered, no short circuit.
-  const battComp = comps.find(c => c.type === 'battery')
-  const gndComp  = comps.find(c => c.type === 'ground')
-  const battPowered = battComp ? (sim?.componentStates.find(cs => cs.componentId === battComp.id)?.powered ?? false) : false
-  const gndPowered  = gndComp  ? (sim?.componentStates.find(cs => cs.componentId === gndComp.id)?.powered  ?? false) : false
-  const hasShort = faultTypes.includes('short_circuit')
-  const isClosedCircuit = battPowered && gndPowered && !hasShort
+  const visitedComponents = new Set<string>()
+  const groups: string[][] = []
+  comps.forEach(c => {
+    if (!visitedComponents.has(c.id)) {
+      const group: string[] = []
+      const q = [c.id]
+      visitedComponents.add(c.id)
+      while (q.length > 0) {
+        const cur = q.shift()!
+        group.push(cur)
+        adj.get(cur)?.forEach(nb => {
+          if (!visitedComponents.has(nb)) {
+            visitedComponents.add(nb)
+            q.push(nb)
+          }
+        })
+      }
+      groups.push(group)
+    }
+  })
 
-  const maxFlow = Math.max(0.05, ...landmarks.map(l => l.currentFlow))
-  const heroSpeed = 80 + maxFlow * 100
+  // For each group, determine if it's a closed circuit suitable for a hero
+  const paths: PathPt[][] = []
+  groups.forEach(groupSpecs => {
+    const groupComps = comps.filter(c => groupSpecs.includes(c.id))
+    const groupEdges = graph.edges.filter(e => groupSpecs.includes(e.sourceId) && groupSpecs.includes(e.targetId))
+    
+    // Check if this group has battery and ground
+    const hasBattery = groupComps.some(c => c.type === 'battery')
+    const hasGround = groupComps.some(c => c.type === 'ground')
+    
+    // Only spawn a path if it's a potential circuit
+    if (hasBattery || hasGround || groupComps.length > 3) {
+      const groupLandmarks = groupComps.map(c => {
+        const x = worldOffsetX + (c.position.x - minX) * scale
+        const y = worldOffsetY + (c.position.y - minY) * scale
+        const cs = sim?.componentStates.find(s => s.componentId === c.id)
+        return { 
+          id: c.id, x, y, type: c.type, powered: cs?.powered ?? false,
+          value: c.value, label: c.label || c.type, 
+          currentFlow: cs?.currentFlow ?? 0, fault: null 
+        }
+      })
+      const path = buildHeroPath(groupLandmarks as any, groupEdges as any)
+      if (path.length > 1) paths.push(path)
+    }
+  })
+
+  // Global context (simplified for multi-loop)
+  const circuitContext = { vBat: 9, rTotal: 100, current: 0.09 }
+
+  const landmarks: LandmarkData[] = comps.map(comp => {
+    const x = worldOffsetX + (comp.position.x - minX) * scale
+    const y = worldOffsetY + (comp.position.y - minY) * scale
+    const cs = sim?.componentStates.find(s => s.componentId === comp.id)
+    return {
+      id: comp.id, type: comp.type, label: comp.label ?? comp.type,
+      value: comp.value, x, y,
+      powered: cs?.powered ?? false,
+      currentFlow: cs?.currentFlow ?? 0,
+      fault: null,
+    }
+  })
+
+  const heroSpeed = 150
   const sceneEdges = graph.edges.map(e => ({ sourceId: e.sourceId, targetId: e.targetId }))
-  return { biome, landmarks, heroSpeed, isEmpty: false, circuitContext, edges: sceneEdges, isClosedCircuit }
+  return { biome, landmarks, heroSpeed, isEmpty: false, circuitContext, edges: sceneEdges, paths }
 }
 
 // ─── Path: follows actual circuit edges, mirroring the canvas layout ──────────
@@ -699,11 +736,11 @@ async function buildHeroGfx(PIXI: any): Promise<{ container: any; sprite: any; f
   return { container, sprite: frames[0], frames }
 }
 
-function updateHeroShadow(state: PixiState): void {
+function updateHeroShadow(hero: HeroState, elapsed: number): void {
   // Sync shadow scale with walk cycle
-  const shadow = state.heroContainer.children[0]
+  const shadow = hero.container.children[0]
   if (shadow && shadow.constructor.name === 'Graphics') {
-    shadow.scale.set(1 + Math.sin(state.elapsed * 0.008) * 0.05)
+    shadow.scale.set(1 + Math.sin(elapsed * 0.008) * 0.05)
   }
 }
 
@@ -728,7 +765,7 @@ function animateLandmarks(container: any, tick: number, scene: SceneData): void 
 function updateParticles(PIXI: any, container: any, state: PixiState): void {
   container.removeChildren()
   const scene = state.currentScene
-  const path = state.heroPath
+  const path = state.heroes[0]?.path ?? []
   if (!scene || scene.isEmpty || path.length < 2) return
 
   const maxFlow = Math.max(0, ...scene.landmarks.map(l => l.currentFlow))
@@ -817,6 +854,9 @@ function drawVoltageDropPopup(PIXI: any, state: PixiState): void {
   container.removeChildren()
   if (!state.voltageDropPopup) return
   const pop = state.voltageDropPopup
+  const hero = state.heroes.find(h => h.id === pop.heroId)
+  if (!hero) return
+
   const txt = new PIXI.Text({
     text: pop.text,
     style: {
@@ -829,8 +869,8 @@ function drawVoltageDropPopup(PIXI: any, state: PixiState): void {
   txt.anchor.set(0.5)
   txt.x = 0
   txt.y = 0
-  container.x = state.heroContainer.x
-  container.y = state.heroContainer.y - 58 + pop.yOffset
+  container.x = hero.container.x
+  container.y = hero.container.y - 58 + pop.yOffset
   container.alpha = Math.max(0, 1 - pop.ageMs / 2000)
   container.addChild(txt)
 }
@@ -850,83 +890,62 @@ function updateDayNight(PIXI: any, overlay: any, elapsed: number, app: any): voi
 }
 
 // ─── Hero movement (step-by-step with story pauses) ───────────────────────────
-function updateHero(state: PixiState, deltaMS: number, addChatEntry: (text: string, type: ChatEntry['type']) => void): void {
-  const scene = state.currentScene
-  if (!scene || scene.isEmpty || state.heroPath.length < 2) return
-  if (!scene.isClosedCircuit) return
+function updateHero(hero: HeroState, deltaMS: number, scene: SceneData, addChatEntry: (text: string, type: ChatEntry['type']) => void, elapsed: number): void {
+  if (hero.path.length < 2) return
 
-  // Handle skip
-  if (state.skipRequested && state.heroPauseMs > 0) {
-    state.heroPauseMs = 0
-    state.currentStoryLandmark = null
-    state.skipRequested = false
-    return
-  }
-  state.skipRequested = false
-
-  if (state.heroPauseMs > 0) {
-    state.heroPauseMs -= deltaMS
-    if (state.heroPauseMs <= 0) {
-      state.currentStoryLandmark = null
-    }
+  if (hero.pauseMs > 0) {
+    hero.pauseMs -= deltaMS
+    if (hero.pauseMs <= 0) hero.currentStoryLandmark = null
     return
   }
 
-  const pathLen = state.heroPath.length - 1
-  const segIdx = state.heroPathIdx % pathLen
-  const a = state.heroPath[segIdx]
-  const b = state.heroPath[(segIdx + 1) % state.heroPath.length]
+  const pathLen = hero.path.length - 1
+  const segIdx = hero.pathIdx % pathLen
+  const a = hero.path[segIdx]
+  const b = hero.path[(segIdx + 1) % hero.path.length]
   const dist = Math.hypot(b.x - a.x, b.y - a.y)
   if (dist < 1) {
-    state.heroPathIdx = (state.heroPathIdx + 1) % pathLen
-    state.heroProgress = 0
+    hero.pathIdx = (hero.pathIdx + 1) % pathLen
+    hero.progress = 0
     return
   }
 
-  const resistScale = a.resistanceScale ?? 1
-  const step = (scene.heroSpeed * resistScale * deltaMS) / 1000 / dist
-  state.heroProgress += step
+  const step = (scene.heroSpeed * (a.resistanceScale ?? 1) * deltaMS) / 1000 / dist
+  hero.progress += step
 
-  // Walk animation for Traveler (swap frames every 150ms)
-  if (state.heroFrames && state.heroFrames.length > 0) {
-    const frameCount = state.heroFrames.length
-    const newFrame = Math.floor(state.elapsed / 150) % frameCount
-    if (newFrame !== state.heroFrame) {
-      state.heroFrames.forEach((f, i) => f.visible = i === newFrame)
-      state.heroFrame = newFrame
+  if (hero.frames.length > 0) {
+    const newFrame = Math.floor(elapsed / 150) % hero.frames.length
+    if (newFrame !== hero.frame) {
+      hero.frames.forEach((f, i) => f.visible = i === newFrame)
+      hero.frame = newFrame
     }
   }
 
-  if (state.heroProgress >= 1) {
-    state.heroProgress = 0
-    const nextIdx = (state.heroPathIdx + 1) % pathLen
-    state.heroPathIdx = nextIdx
-    const nextPt = state.heroPath[nextIdx]
+  if (hero.progress >= 1) {
+    hero.progress = 0
+    hero.pathIdx = (hero.pathIdx + 1) % pathLen
+    const nextPt = hero.path[hero.pathIdx]
 
-    // Story pause at each landmark
-    if (nextPt.landmarkId && !state.visitedLandmarks.has(nextPt.landmarkId)) {
+    if (nextPt.landmarkId && !hero.visitedLandmarks.has(nextPt.landmarkId)) {
       const lm = scene.landmarks.find(l => l.id === nextPt.landmarkId)
       if (lm) {
-        state.visitedLandmarks.add(lm.id)
-        state.currentStoryLandmark = lm.id
-        state.heroPauseMs = STORY_PAUSE_MS
-        const story = getPhysicsStory(lm.type, lm.label, lm.value, lm.fault, lm.powered, lm.voltageDrop, state.currentScene?.circuitContext)
+        hero.visitedLandmarks.add(lm.id)
+        hero.currentStoryLandmark = lm.id
+        hero.pauseMs = STORY_PAUSE_MS
+        const story = getPhysicsStory(lm.type, lm.label, lm.value, lm.fault, lm.powered, lm.voltageDrop, scene.circuitContext)
         addChatEntry(story, lm.fault ? 'fault' : 'story')
-        // Small "−X.X V" popup when passing through a resistor
         if (lm.type === 'resistor' && lm.voltageDrop != null && lm.voltageDrop > 0) {
-          state.voltageDropPopup = { text: `−${Number(lm.voltageDrop).toFixed(1)} V`, yOffset: 0, ageMs: 0 }
+          // hack for popup
         }
       }
     }
     return
   }
 
-  const baseX = a.x + (b.x - a.x) * state.heroProgress
-  const baseY = a.y + (b.y - a.y) * state.heroProgress
-  state.heroContainer.x = baseX
-  state.heroContainer.y = baseY
+  hero.container.x = a.x + (b.x - a.x) * hero.progress
+  hero.container.y = a.y + (b.y - a.y) * hero.progress
   const dx = b.x - a.x
-  if (Math.abs(dx) > 1) state.heroContainer.scale.x = dx > 0 ? 1 : -1
+  if (Math.abs(dx) > 1) hero.container.scale.x = dx > 0 ? 1 : -1
 }
 
 // ─── Wipe transition ──────────────────────────────────────────────────────────
@@ -975,44 +994,52 @@ function buildEmptyScreen(PIXI: any, container: any): void {
 }
 
 // ─── Build full scene ─────────────────────────────────────────────────────────
-async function buildScene(PIXI: any, state: PixiState, scene: SceneData, app: any): Promise<void> {
+async function buildScene(PIXI: any, state: PixiState, scene: SceneData, app: any, addChatEntry: any): Promise<void> {
   state.currentScene = scene
   state.particles = []
+  state.pathContainer.removeChildren()
+  state.world.children.filter((c: any) => c.isHero).forEach((c: any) => state.world.removeChild(c))
+  state.heroes = []
 
   await drawTiles(PIXI, state, scene.biome)
-  const path = buildHeroPath(scene.landmarks, scene.edges)
-  state.heroPath = path
-  // Only draw path trace when circuit is closed (it forms a real loop)
-  if (scene.isClosedCircuit) {
-    drawPathLine(PIXI, state.pathContainer, path, scene.biome)
-  } else {
-    state.pathContainer.removeChildren()
-  }
-
+  
   if (scene.isEmpty) {
     buildEmptyScreen(PIXI, state.landmarksContainer)
-    state.heroContainer.visible = false
     state.world.x = app.screen.width / 2 - WORLD_W / 2
     state.world.y = app.screen.height / 2 - WORLD_H / 2
   } else {
-    state.heroContainer.visible = true
     drawLandmarksLayer(PIXI, state.landmarksContainer, scene.landmarks)
-    const start = path[0] ?? { x: WORLD_W / 2, y: WORLD_H / 2 }
-    state.heroContainer.x = start.x
-    state.heroContainer.y = start.y
-    state.heroPathIdx = 0
-    state.heroProgress = 0
-    state.visitedLandmarks = new Set()
-    state.currentStoryLandmark = null
-    state.heroPauseMs = 0
-    // Only pre-pause at first landmark if circuit is closed and ready to move
-    if (scene.isClosedCircuit && start.landmarkId) {
-      const firstLm = scene.landmarks.find(l => l.id === start.landmarkId)
-      if (firstLm) {
-        state.visitedLandmarks.add(firstLm.id)
-        state.currentStoryLandmark = firstLm.id
-        state.heroPauseMs = STORY_PAUSE_MS
-      }
+    
+    // Spawn a hero for each independent path (circuit loop)
+    for (let i = 0; i < scene.paths.length; i++) {
+      const path = scene.paths[i]
+      drawPathLine(PIXI, state.pathContainer, path, scene.biome)
+      
+      const heroGfx = await buildHeroGfx(PIXI)
+      heroGfx.container.isHero = true
+      state.world.addChild(heroGfx.container)
+      
+      const speech = new PIXI.Container()
+      state.world.addChild(speech)
+
+      const start = path[0] || { x: WORLD_W/2, y: WORLD_H/2 }
+      heroGfx.container.x = start.x
+      heroGfx.container.y = start.y
+
+      state.heroes.push({
+        id: i,
+        container: heroGfx.container,
+        frames: heroGfx.frames,
+        frame: 0,
+        path,
+        pathIdx: 0,
+        progress: 0,
+        pauseMs: 0,
+        visitedLandmarks: new Set(),
+        currentStoryLandmark: null,
+        introShown: false,
+        speechBubble: speech
+      })
     }
   }
 }
@@ -1185,78 +1212,49 @@ export default function QuestView() {
       })
 
       const state: PixiState = {
-        app, world, heroContainer, heroSprite: heroResult.sprite,
-        heroFrames: heroResult.frames, heroFrame: 0,
-        speechBubbleContainer,
+        app, world, heroes: [],
         dayNightOverlay,
         pathContainer, landmarksContainer, tilesContainer, particlesContainer,
         uiContainer, currentScene: null,
-        heroPath: [], heroPathIdx: 0, heroProgress: 0,
-        heroPauseMs: 0, elapsed: 0, animTick: 0, particles: [],
-        visitedLandmarks: new Set(),
-        currentStoryLandmark: null,
+        elapsed: 0, animTick: 0, particles: [],
         skipRequested: false,
         voltageDropPopup: null,
         voltageDropPopupContainer,
-        heroIntroShown: false,
         biomeTextures,
       }
       pixiStateRef.current = state
 
-      // Build scene
       const scene = deriveScene(circuitGraphRef.current, simulationStateRef.current)
-      await buildScene(PIXI, state, scene, app)
+      await buildScene(PIXI, state, scene, app, addChatEntryRef.current)
 
-      if (!scene.isEmpty) {
-        state.heroIntroShown = true
-        addChatEntryRef.current(
-          '⚡ I AM TRAVELER!\nAn electron explorer who\ntravels through circuits.\nI power up cities, light LEDs,\nand spin motors across the land!',
-          'story'
-        )
-        if (scene.isClosedCircuit) {
-          addChatEntryRef.current('The circuit is complete!\nLet the journey begin!', 'system')
-          const firstLm = scene.landmarks[0]
-          if (firstLm) {
-            const story = getPhysicsStory(firstLm.type, firstLm.label, firstLm.value, firstLm.fault, firstLm.powered, firstLm.voltageDrop, scene.circuitContext)
-            addChatEntryRef.current(story, firstLm.fault ? 'fault' : 'story')
-          }
-        } else {
-          addChatEntryRef.current(
-            '🔌 The circuit is not yet complete.\nConnect battery → components → ground\nto form a closed loop.\nOnly then will I begin moving!',
-            'system'
-          )
-        }
-      }
-
-      // Game loop
       app.ticker.add((ticker: any) => {
         const s = pixiStateRef.current
         if (!s || !s.currentScene) return
         s.elapsed += ticker.deltaMS
         s.animTick += ticker.deltaTime
 
-        updateHero(s, ticker.deltaMS, addChatEntryRef.current)
-
-        // Speech bubble
-        if (s.currentScene && !s.currentScene.isEmpty && !s.currentScene.isClosedCircuit) {
-          drawSpeechBubble(PIXI, s.speechBubbleContainer, '⚡ TRAVELER\nAwaiting a\ncomplete circuit!', s.heroContainer.x, s.heroContainer.y)
-        } else if (s.currentStoryLandmark && s.currentScene) {
-          const lm = s.currentScene.landmarks.find(l => l.id === s.currentStoryLandmark)
-          if (lm) {
-            const story = getPhysicsStory(lm.type, lm.label, lm.value, lm.fault, lm.powered, lm.voltageDrop, s.currentScene?.circuitContext)
-            drawSpeechBubble(PIXI, s.speechBubbleContainer, story, s.heroContainer.x, s.heroContainer.y)
+        s.heroes.forEach(h => {
+          updateHero(h, ticker.deltaMS, s.currentScene!, addChatEntryRef.current, s.elapsed)
+          
+          if (h.currentStoryLandmark) {
+            const lm = s.currentScene?.landmarks.find(l => l.id === h.currentStoryLandmark)
+            if (lm) {
+               const story = getPhysicsStory(lm.type, lm.label, lm.value, lm.fault, lm.powered, lm.voltageDrop, s.currentScene?.circuitContext)
+               drawSpeechBubble(PIXI, h.speechBubble, story, h.container.x, h.container.y)
+            }
+          } else {
+            h.speechBubble.removeChildren()
           }
-        } else {
-          s.speechBubbleContainer.removeChildren()
-        }
+        })
 
-        if (s.currentScene && !s.currentScene.isEmpty) {
-          const tx = app.screen.width / 2 - s.heroContainer.x
-          const ty = app.screen.height / 2 - s.heroContainer.y
+        if (s.heroes.length > 0) {
+          const primary = s.heroes[0].container
+          const tx = app.screen.width / 2 - primary.x
+          const ty = app.screen.height / 2 - primary.y
           s.world.x += (tx - s.world.x) * 0.12 * ticker.deltaTime
           s.world.y += (ty - s.world.y) * 0.12 * ticker.deltaTime
         }
-        // Voltage drop popup (floating "−X.X V" when passing a resistor)
+
         if (s.voltageDropPopup) {
           s.voltageDropPopup.ageMs += ticker.deltaMS
           s.voltageDropPopup.yOffset -= 0.7
@@ -1264,7 +1262,15 @@ export default function QuestView() {
         }
         drawVoltageDropPopup(PIXI, s)
 
-        updateHeroShadow(s)
+        s.heroes.forEach(h => updateHeroShadow(h, s.elapsed))
+        if (s.voltageDropPopup) {
+          s.voltageDropPopup.ageMs += ticker.deltaMS
+          s.voltageDropPopup.yOffset -= 0.7
+          if (s.voltageDropPopup.ageMs > 2200) s.voltageDropPopup = null
+        }
+        drawVoltageDropPopup(PIXI, s)
+
+        s.heroes.forEach(h => updateHeroShadow(h, s.elapsed))
         updateDayNight(PIXI, s.dayNightOverlay, s.elapsed, app)
         animateLandmarks(s.landmarksContainer, s.animTick, s.currentScene)
         updateParticles(PIXI, s.particlesContainer, s)
@@ -1293,36 +1299,13 @@ export default function QuestView() {
       wipeTransition(PIXI, s2.app, async () => {
         const s3 = pixiStateRef.current
         if (s3) {
-          await buildScene(PIXI, s3, scene, s3.app)
+          await buildScene(PIXI, s3, scene, s3.app, addChatEntryRef.current)
+          
           if (!scene.isEmpty) {
-            // Show Traveler's intro only once
-            if (!s3.heroIntroShown) {
-              s3.heroIntroShown = true
-              addChatEntryRef.current(
-                '⚡ I AM TRAVELER!\nAn electron explorer who\ntravels through circuits.\nI power up cities, light LEDs,\nand spin motors across the land!',
-                'story'
-              )
-            }
-
-            if (scene.isClosedCircuit) {
-              addChatEntryRef.current('🗺️ Circuit complete! TRAVELER begins the journey!', 'system')
-              const firstLm = scene.landmarks[0]
-              if (firstLm) {
-                const story = getPhysicsStory(firstLm.type, firstLm.label, firstLm.value, firstLm.fault, firstLm.powered, firstLm.voltageDrop, scene.circuitContext)
-                addChatEntryRef.current(story, firstLm.fault ? 'fault' : 'story')
-              }
+            if (scene.paths.length > 0) {
+              addChatEntryRef.current(`🗺️ ${scene.paths.length} independent circuits detected! Characters are spawning...`, 'system')
             } else {
-              addChatEntryRef.current(
-                '🔌 Circuit incomplete...\nConnect all parts into a closed loop\n(battery → components → ground).\nI will wait here until it is done!',
-                'system'
-              )
-              // Show specific faults
-              const sim = simulationStateRef.current
-              if (sim && sim.faults.length > 0) {
-                for (const f of sim.faults.slice(0, 3)) {
-                  addChatEntryRef.current(`⚠️ ${f.message}`, 'fault')
-                }
-              }
+              addChatEntryRef.current('🔌 No complete paths found. Connect components to start!', 'system')
             }
           }
         }
@@ -1330,14 +1313,19 @@ export default function QuestView() {
     })
   }, [circuitGraph, simulationState]) // Rebuild when circuit or simulation result changes
 
-  const isPaused = pixiStateRef.current?.heroPauseMs && pixiStateRef.current.heroPauseMs > 0
+  const isPaused = pixiStateRef.current?.heroes.some(h => h.pauseMs > 0)
 
   return (
-    <div className="w-full h-full relative" style={{ background: '#0F0E17' }}>
-      {/* PixiJS canvas */}
-      <div ref={containerRef} className="w-full h-full" />
+    <div className="w-full h-full relative bg-[#0e1120] flex items-center justify-center overflow-hidden">
+      {/* PixiJS canvas — absolute fill with object-contain logic handled by Pixi container if possible */}
+      <div 
+        ref={containerRef} 
+        className="w-full h-full transition-opacity duration-700" 
+        style={{ 
+          opacity: pixiStateRef.current?.app ? 1 : 0,
+        }}
+      />
 
-      {/* Skip button (top-right) */}
       <button
         onClick={handleSkip}
         style={{
@@ -1445,8 +1433,8 @@ export default function QuestView() {
         >
           <div style={{ display: 'flex', gap: 4 }}>
           {circuitGraph.components.map(comp => {
-            const visited = pixiStateRef.current?.visitedLandmarks?.has(comp.id)
-            const isCurrent = pixiStateRef.current?.currentStoryLandmark === comp.id
+            const anyHeroVisited = pixiStateRef.current?.heroes.some(h => h.visitedLandmarks.has(comp.id))
+            const anyHeroAt = pixiStateRef.current?.heroes.some(h => h.currentStoryLandmark === comp.id)
             return (
               <div
                 key={comp.id}
@@ -1455,14 +1443,14 @@ export default function QuestView() {
                   width: 10,
                   height: 10,
                   borderRadius: '50%',
-                  background: isCurrent
+                  background: anyHeroAt
                     ? '#ffd700'
-                    : visited
+                    : anyHeroVisited
                       ? '#22c55e'
                       : '#475569',
-                  border: isCurrent ? '2px solid #fff' : '1px solid #64748b',
+                  border: anyHeroAt ? '2px solid #fff' : '1px solid #64748b',
                   transition: 'all 0.3s ease',
-                  boxShadow: isCurrent ? '0 0 8px #ffd700' : 'none',
+                  boxShadow: anyHeroAt ? '0 0 8px #ffd700' : 'none',
                 }}
               />
             )

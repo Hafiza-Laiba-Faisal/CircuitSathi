@@ -205,9 +205,6 @@ function generateSchematicSVG(graph: CircuitGraph): string {
     const tgt = posMap[edge.targetId]
     if (!src || !tgt) continue
 
-    const srcComp = graph.components.find(c => c.id === edge.sourceId)
-    const tgtComp = graph.components.find(c => c.id === edge.targetId)
-
     // Determine connection points based on pin
     let sx = src.x + 30, sy = src.y
     let tx = tgt.x - 30, ty = tgt.y
@@ -333,7 +330,6 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
 }
 
 const CircuitNode = memo(CircuitNodeRaw)
-
 const nodeTypes = { circuitNode: CircuitNode }
 
 /* ------------------------------------------------------------------ */
@@ -390,9 +386,6 @@ function DemoCard({ demo, onLoad }: { demo: DemoCircuit; onLoad: (g: CircuitGrap
       <span style={{ fontFamily: "'VT323', monospace", fontSize: 14, color: '#94a3b8', lineHeight: 1.2 }}>
         {demo.description}
       </span>
-      <span style={{ fontFamily: "'VT323', monospace", fontSize: 13, color: '#475569' }}>
-        {demo.graph.components.length} components · {demo.graph.edges.length} wires
-      </span>
     </button>
   )
 }
@@ -407,30 +400,20 @@ function BuilderInner() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [showDemos, setShowDemos] = useState(false)
   
-  // 🔄 Sync with store's canvasNodes/Edges for AI-driven animations
   const storeNodes = useCircuitStore(s => s.canvasNodes)
   const storeEdges = useCircuitStore(s => s.canvasEdges)
 
   useEffect(() => {
-    // Only sync if the store has more nodes/edges than we do, or if they are different
-    // This allows the animation to propagate to the local React Flow state
-    if (storeNodes.length !== nodes.length) {
-      setNodes([...storeNodes])
-    }
+    if (storeNodes.length !== nodes.length) setNodes([...storeNodes])
   }, [storeNodes, setNodes, nodes.length])
 
   useEffect(() => {
-    if (storeEdges.length !== edges.length) {
-      setEdges([...storeEdges])
-    }
+    if (storeEdges.length !== edges.length) setEdges([...storeEdges])
   }, [storeEdges, setEdges, edges.length])
 
-  const [showDemos, setShowDemos] = useState(false)
-
-  /* ---------- sync React Flow → Zustand store ---------- */
   const prevGraphRef = useRef<string>('')
-
   useEffect(() => {
     const graph: CircuitGraph = {
       components: nodes.map(n => ({
@@ -441,11 +424,8 @@ function BuilderInner() {
         position: n.position,
       })),
       edges: edges.map(e => ({
-        id: e.id,
-        sourceId: e.source,
-        targetId: e.target,
-        sourcePin: e.sourceHandle || undefined,
-        targetPin: e.targetHandle || undefined,
+        id: e.id, sourceId: e.source, targetId: e.target,
+        sourcePin: e.sourceHandle || undefined, targetPin: e.targetHandle || undefined,
       })),
     }
     const key = JSON.stringify(graph)
@@ -454,434 +434,110 @@ function BuilderInner() {
     setCircuitGraph(graph)
   }, [nodes, edges, setCircuitGraph])
 
-  /* ---------- load preset / saved circuit ---------- */
   useEffect(() => {
     if (!pendingLoad) return
-    const newNodes: Node[] = pendingLoad.components.map(c => ({
-      id: c.id,
-      type: 'circuitNode',
-      position: c.position,
-      data: { componentType: c.type, label: c.label, value: c.value },
-    }))
-    const newEdges: Edge[] = pendingLoad.edges.map(e => ({
-      id: e.id,
-      source: e.sourceId,
-      target: e.targetId,
-      sourceHandle: e.sourcePin ?? null,
-      targetHandle: e.targetPin ?? null,
-      style: { stroke: '#06b6d4', strokeWidth: 2 },
-      animated: true,
-    }))
-    setNodes(newNodes)
-    setEdges(newEdges)
+    setNodes(pendingLoad.components.map(c => ({ id: c.id, type: 'circuitNode', position: c.position, data: { componentType: c.type, label: c.label, value: c.value } })))
+    setEdges(pendingLoad.edges.map(e => ({ id: e.id, source: e.sourceId, target: e.targetId, sourceHandle: e.sourcePin ?? null, targetHandle: e.targetPin ?? null, style: { stroke: '#06b6d4', strokeWidth: 2 }, animated: true })))
     clearPendingLoad()
     setTimeout(() => rfInstance.current?.fitView({ padding: 0.2 }), 50)
   }, [pendingLoad, clearPendingLoad, setNodes, setEdges])
 
-  /* ---------- edge creation ---------- */
-  const onConnect = useCallback(
-    (params: Connection) =>
-      setEdges(eds =>
-        addEdge({ ...params, style: { stroke: '#06b6d4', strokeWidth: 2 }, animated: true }, eds),
-      ),
-    [setEdges],
-  )
-
-  /* ---------- drag-and-drop from palette ---------- */
-  const onDragOver = useCallback((e: DragEvent) => {
+  const onConnect = useCallback((params: Connection) => setEdges(eds => addEdge({ ...params, style: { stroke: '#06b6d4', strokeWidth: 2 }, animated: true }, eds)), [setEdges])
+  const onDragOver = useCallback((e: DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }, [])
+  const onDrop = useCallback((e: DragEvent) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }, [])
+    const type = e.dataTransfer.getData('application/circuitcomponent') as CType
+    if (!type || !rfInstance.current) return
+    const position = rfInstance.current.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const cfg = CONFIGS[type]
+    const id = `${type}_${Math.random().toString(36).slice(2, 9)}`
+    setNodes(nds => [...nds, { id, type: 'circuitNode', position, data: { componentType: type, label: `${type.charAt(0).toUpperCase()}${nds.length + 1}`, value: cfg.defaultValue } }])
+  }, [setNodes])
 
-  const onDrop = useCallback(
-    (e: DragEvent) => {
-      e.preventDefault()
-      const type = e.dataTransfer.getData('application/circuitcomponent') as CType
-      if (!type || !rfInstance.current) return
-
-      const position = rfInstance.current.screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      const cfg = CONFIGS[type]
-      const id = `${type}_${Math.random().toString(36).slice(2, 9)}`
-
-      const typeInitial = type.charAt(0).toUpperCase()
-      
-      setNodes(nds => {
-        const sameTypeNodes = nds.filter(n => n.data.componentType === type && n.data.label?.startsWith(typeInitial))
-        let maxNum = 0
-        sameTypeNodes.forEach(n => {
-          const match = n.data.label.match(new RegExp(`^${typeInitial}(\\d+)$`))
-          if (match) maxNum = Math.max(maxNum, parseInt(match[1]))
-        })
-        const newLabel = `${typeInitial}${maxNum + 1}`
-
-        return [
-          ...nds,
-          {
-            id,
-            type: 'circuitNode',
-            position,
-            data: { componentType: type, label: newLabel, value: cfg.defaultValue },
-          },
-        ]
-      })
-    },
-    [setNodes],
-  )
-
-  /* ---------- node click / double-click ---------- */
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => setSelectedComponentId(node.id),
-    [setSelectedComponentId],
-  )
-
-  const onNodeDoubleClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      if (node.data.componentType === 'switch') {
-        setNodes(nds =>
-          nds.map(n =>
-            n.id === node.id
-              ? { ...n, data: { ...n.data, value: n.data.value === 1 ? 0 : 1 } }
-              : n,
-          ),
-        )
-      }
-    },
-    [setNodes],
-  )
+  const onNodeClick = useCallback((_: any, node: Node) => setSelectedComponentId(node.id), [setSelectedComponentId])
+  const onNodeDoubleClick = useCallback((_: any, node: Node) => {
+    if (node.data.componentType === 'switch') {
+      setNodes(nds => nds.map(n => n.id === node.id ? { ...n, data: { ...n.data, value: n.data.value === 1 ? 0 : 1 } } : n))
+    }
+  }, [setNodes])
 
   const onPaneClick = useCallback(() => setSelectedComponentId(null), [setSelectedComponentId])
+  const handleFileParsed = useCallback((graph: CircuitGraph) => requestCircuitLoad(graph), [requestCircuitLoad])
+  const handleLoadDemo = useCallback((graph: CircuitGraph) => { requestCircuitLoad(graph); setShowDemos(false) }, [requestCircuitLoad])
 
-  const handleFileParsed = useCallback(
-    (graph: CircuitGraph) => requestCircuitLoad(graph),
-    [requestCircuitLoad],
-  )
-
-  /* ---------- load demo circuit ---------- */
-  const handleLoadDemo = useCallback(
-    (graph: CircuitGraph) => {
-      requestCircuitLoad(graph)
-      setShowDemos(false)
-    },
-    [requestCircuitLoad],
-  )
-
-  /* ---------- export functions ---------- */
   const handleExportJSON = useCallback(() => {
-    const graph: CircuitGraph = {
-      components: nodes.map(n => ({
-        id: n.id,
-        type: n.data.componentType,
-        label: n.data.label,
-        value: n.data.value,
-        position: n.position,
-      })),
-      edges: edges.map(e => ({
-        id: e.id,
-        sourceId: e.source,
-        targetId: e.target,
-        sourcePin: e.sourceHandle || undefined,
-        targetPin: e.targetHandle || undefined,
-      })),
-    }
+    const graph = { components: nodes.map(n => ({ id: n.id, type: n.data.componentType, label: n.data.label, value: n.data.value, position: n.position })), edges: edges.map(e => ({ id: e.id, sourceId: e.source, targetId: e.target })) }
     const blob = new Blob([JSON.stringify(graph, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'circuit-schematic.json'
-    a.click()
-    URL.revokeObjectURL(url)
+    const a = document.createElement('a'); a.href = url; a.download = 'circuit.json'; a.click(); URL.revokeObjectURL(url)
   }, [nodes, edges])
 
   const handleExportSVG = useCallback(() => {
-    const graph: CircuitGraph = {
-      components: nodes.map(n => ({
-        id: n.id,
-        type: n.data.componentType,
-        label: n.data.label,
-        value: n.data.value,
-        position: n.position,
-      })),
-      edges: edges.map(e => ({
-        id: e.id,
-        sourceId: e.source,
-        targetId: e.target,
-        sourcePin: e.sourceHandle || undefined,
-        targetPin: e.targetHandle || undefined,
-      })),
-    }
-    const svg = generateSchematicSVG(graph)
+    const svg = generateSchematicSVG({ components: nodes.map(n => ({ id: n.id, type: n.data.componentType, label: n.data.label, value: n.data.value, position: n.position })), edges: edges.map(e => ({ id: e.id, sourceId: e.source, targetId: e.target })) })
     if (!svg) return
     const blob = new Blob([svg], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'circuit-schematic.svg'
-    a.click()
-    URL.revokeObjectURL(url)
+    const a = document.createElement('a'); a.href = url; a.download = 'circuit.svg'; a.click(); URL.revokeObjectURL(url)
   }, [nodes, edges])
 
   return (
-    <div className="h-full flex flex-col">
-      {activeMode === 'upload' ? (
-        /* upload zone — fixed height, scrollable */
-        <div className="shrink-0 max-h-[50%] overflow-y-auto border-b border-gray-700">
-          <UploadZone onParsed={handleFileParsed} />
-        </div>
-      ) : (
-        <>
-          {/* component palette — grouped & scrollable */}
-          <div style={{
-            display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 6px',
-            background: '#0a0e1a', borderBottom: '2px solid #1e293b',
-            maxHeight: 160, overflowY: 'auto', overflowX: 'hidden',
-          }}>
-            {PALETTE_GROUPS.map(group => (
-              <div key={group.title}>
-                <div style={{ fontSize: 7, color: '#475569', fontWeight: 'bold', letterSpacing: '0.15em', textTransform: 'uppercase', padding: '3px 4px 1px' }}>{group.title}</div>
-                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                  {group.items.map(type => {
-                    const c = CONFIGS[type]
-                    const isActive = activeToolbarComponent === type
-                    return (
-                      <div
-                        key={type}
-                        draggable
-                        onDragStart={e => {
-                          e.dataTransfer.setData('application/circuitcomponent', type)
-                          e.dataTransfer.effectAllowed = 'move'
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 3,
-                          padding: '3px 6px',
-                          background: isActive ? `${c.color}33` : '#0f172a',
-                          border: `1px solid ${isActive ? '#fbbf24' : `${c.color}33`}`,
-                          borderRadius: 3,
-                          cursor: 'grab',
-                          fontFamily: "monospace",
-                          fontSize: 8,
-                          color: isActive ? '#fbbf24' : c.color,
-                          transition: 'all 0.2s ease',
-                          userSelect: 'none',
-                          boxShadow: isActive ? '0 0 12px #fbbf24' : 'none',
-                          transform: isActive ? 'scale(1.08)' : 'scale(1)',
-                          position: 'relative',
-                          zIndex: isActive ? 50 : 1
-                        }}
-                        className={isActive ? 'animate-bounce' : ''}
-                        onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = c.color; e.currentTarget.style.boxShadow = `0 0 4px ${c.color}33` } }}
-                        onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = `${c.color}33`; e.currentTarget.style.boxShadow = 'none' } }}
-                      >
-                        <span style={{ fontSize: 10 }}>{c.symbol}</span>
-                        <span>{c.label}</span>
-                        {isActive && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
-                        )}
-                      </div>
-                    )
-                  })}
+    <div className="flex-1 flex flex-col min-h-0 bg-[#0a0e1a] relative group border border-amber-500/10 rounded-xl overflow-hidden shadow-2xl">
+      <div className="flex flex-1 min-h-0">
+        {activeMode === 'upload' ? (
+          <div className="flex-1 overflow-y-auto border-r border-gray-700 bg-black/20"><UploadZone onParsed={handleFileParsed} /></div>
+        ) : (
+          <>
+            <div className="w-52 flex flex-col gap-2 p-3 bg-[#050810] border-r border-amber-500/20 overflow-y-auto custom-scrollbar shrink-0">
+              {PALETTE_GROUPS.map(group => (
+                <div key={group.title} className="mb-4">
+                  <div className="text-[9px] font-bold text-amber-500/60 uppercase tracking-widest mb-2 px-1">{group.title}</div>
+                  <div className="flex flex-col gap-2">
+                    {group.items.map(type => {
+                      const c = CONFIGS[type]
+                      const isActive = activeToolbarComponent === type
+                      return (
+                        <div key={type} draggable onDragStart={e => { e.dataTransfer.setData('application/circuitcomponent', type); e.dataTransfer.effectAllowed = 'move' }}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-grab transition-all duration-200 border ${isActive ? 'bg-amber-500/20 border-amber-400' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                          style={{ color: isActive ? '#fbbf24' : c.color }}>
+                          <span className="text-lg w-6 text-center">{c.symbol}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider">{c.label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Demo Circuits & Export bar */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '4px 8px',
-            background: '#0a0e1a', borderBottom: '2px solid #1e293b',
-          }}>
-            <button
-              onClick={() => setShowDemos(prev => !prev)}
-              style={{
-                fontFamily: "'Press Start 2P', monospace",
-                fontSize: 7,
-                color: showDemos ? '#ffd700' : '#64748b',
-                background: showDemos ? '#1a1500' : '#0f172a',
-                border: `2px solid ${showDemos ? '#ffd700' : '#334155'}`,
-                borderRadius: 2,
-                padding: '4px 8px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {showDemos ? '▾ DEMOS' : '▸ DEMOS'}
-            </button>
-
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                onClick={handleExportSVG}
-                disabled={nodes.length === 0}
-                style={{
-                  fontFamily: "'Press Start 2P', monospace",
-                  fontSize: 6,
-                  color: nodes.length === 0 ? '#475569' : '#a78bfa',
-                  background: '#0f172a',
-                  border: `2px solid ${nodes.length === 0 ? '#1e293b' : '#3730a3'}`,
-                  borderRadius: 2,
-                  padding: '3px 6px',
-                  cursor: nodes.length === 0 ? 'not-allowed' : 'pointer',
-                  opacity: nodes.length === 0 ? 0.4 : 1,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                ↓ SVG
-              </button>
-              <button
-                onClick={handleExportJSON}
-                disabled={nodes.length === 0}
-                style={{
-                  fontFamily: "'Press Start 2P', monospace",
-                  fontSize: 6,
-                  color: nodes.length === 0 ? '#475569' : '#34d399',
-                  background: '#0f172a',
-                  border: `2px solid ${nodes.length === 0 ? '#1e293b' : '#065f46'}`,
-                  borderRadius: 2,
-                  padding: '3px 6px',
-                  cursor: nodes.length === 0 ? 'not-allowed' : 'pointer',
-                  opacity: nodes.length === 0 ? 0.4 : 1,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                ↓ JSON
-              </button>
-            </div>
-          </div>
-
-          {/* Demo circuits grid (collapsible) */}
-          {showDemos && (
-            <div
-              style={{
-                maxHeight: 220,
-                overflowY: 'auto',
-                padding: '6px 8px',
-                background: '#0a0e1a',
-                borderBottom: '2px solid #1e293b',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-            >
-              <div style={{
-                fontFamily: "'Press Start 2P', monospace",
-                fontSize: 6,
-                color: '#475569',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}>
-                CLICK TO LOAD A DEMO
-              </div>
-              {DEMO_CIRCUITS.map(demo => (
-                <DemoCard key={demo.id} demo={demo} onLoad={handleLoadDemo} />
               ))}
             </div>
-          )}
-        </>
-      )}
-
-      {/* canvas */}
-      <div className="flex-1 min-h-[200px] relative">
-        {/* Properties Panel Overlay */}
-        {(() => {
-          const selNode = nodes.find(n => n.id === selectedComponentId)
-          if (!selNode) return null
-          return (
-            <div style={{
-              position: 'absolute', top: 10, right: 10, zIndex: 10,
-              background: '#0a0e1a', border: '2px solid #3b82f6', borderRadius: 4,
-              padding: '8px 12px', width: 240,
-              boxShadow: '0 4px 6px rgba(0,0,0,0.5)',
-              display: 'flex', flexDirection: 'column', gap: 8
-            }}>
-              <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 7, color: '#60a5fa', marginBottom: 2 }}>
-                {selNode.data.componentType.toUpperCase()} PROPERTIES
-              </div>
-              {/* Physics equation hint */}
-              <div style={{
-                fontFamily: 'monospace', fontSize: 9, color: '#475569',
-                borderLeft: '2px solid #1e3a5f', paddingLeft: 6, lineHeight: 1.5,
-              }}>
-                {selNode.data.componentType === 'resistor' && 'V = I × R\nP = I²R = V²/R'}
-                {selNode.data.componentType === 'battery' && 'ε = EMF (Electromotive Force)\nI = ε / R_total'}
-                {selNode.data.componentType === 'capacitor' && 'Q = C × V\nE = ½CV²\nI = C × dV/dt'}
-                {selNode.data.componentType === 'led' && 'P = V_f × I_f\nE = h × f (photon)'}
-                {selNode.data.componentType === 'motor' && 'P = V × I\nτ = K_t × I (torque)'}
-                {selNode.data.componentType === 'switch' && (selNode.data.value === 1 ? 'CLOSED — current flows' : 'OPEN — no current\nDouble-click to toggle')}
-                {selNode.data.componentType === 'ground' && 'V_ref = 0V\nReturn path for current'}
-              </div>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontFamily: "'VT323', monospace", fontSize: 13, color: '#94a3b8' }}>Label</span>
-                <input 
-                  type="text" 
-                  value={selNode.data.label || ''} 
-                  onChange={e => {
-                    const val = e.target.value
-                    setNodes(nds => nds.map(n => n.id === selNode.id ? { ...n, data: { ...n.data, label: val } } : n))
-                  }}
-                  style={{
-                    background: '#1e293b', border: '1px solid #475569', color: '#f8fafc',
-                    fontFamily: 'monospace', fontSize: 12, padding: '4px 6px', borderRadius: 2
-                  }}
-                />
-              </label>
-              {selNode.data.value !== undefined && (
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontFamily: "'VT323', monospace", fontSize: 13, color: '#94a3b8' }}>Value</span>
-                  <input 
-                    type="number" 
-                    value={selNode.data.value === null ? '' : selNode.data.value} 
-                    onChange={e => {
-                      const val = parseFloat(e.target.value)
-                      setNodes(nds => nds.map(n => n.id === selNode.id ? { ...n, data: { ...n.data, value: isNaN(val) ? 0 : val } } : n))
-                    }}
-                    style={{
-                      background: '#1e293b', border: '1px solid #475569', color: '#f8fafc',
-                      fontFamily: 'monospace', fontSize: 12, padding: '4px 6px', borderRadius: 2
-                    }}
-                  />
-                </label>
-              )}
+            <div className="flex-1 relative">
+              {(() => {
+                const selNode = nodes.find(n => n.id === selectedComponentId)
+                if (!selNode) return null
+                return (
+                  <div className="absolute top-4 right-4 z-10 w-64 glass-panel p-4 rounded-xl border border-blue-500/30 shadow-2xl space-y-3">
+                    <div className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">{selNode.data.componentType} Settings</div>
+                    <input type="text" value={selNode.data.label || ''} onChange={e => setNodes(nds => nds.map(n => n.id === selNode.id ? { ...n, data: { ...n.data, label: e.target.value } } : n))} className="w-full bg-black/40 border border-white/10 p-2 text-xs rounded" />
+                    {selNode.data.value !== undefined && <input type="number" value={selNode.data.value} onChange={e => setNodes(nds => nds.map(n => n.id === selNode.id ? { ...n, data: { ...n.data, value: parseFloat(e.target.value) || 0 } } : n))} className="w-full bg-black/40 border border-white/10 p-2 text-xs rounded" />}
+                  </div>
+                )
+              })()}
+              <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onDrop={onDrop} onDragOver={onDragOver} onInit={inst => { rfInstance.current = inst }} onNodeClick={onNodeClick} onNodeDoubleClick={onNodeDoubleClick} onPaneClick={onPaneClick} nodeTypes={nodeTypes} connectionMode={ConnectionMode.Loose} fitView className="bg-gray-950">
+                <Controls className="!bg-gray-800 !border-gray-600 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!fill-white" />
+                <Background color="#374151" gap={20} variant={BackgroundVariant.Dots} />
+              </ReactFlow>
             </div>
-          )
-        })()}
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onInit={inst => { rfInstance.current = inst }}
-          onNodeClick={onNodeClick}
-          onNodeDoubleClick={onNodeDoubleClick}
-          onPaneClick={onPaneClick}
-          nodeTypes={nodeTypes}
-          connectionMode={ConnectionMode.Loose}
-          fitView
-          className="bg-gray-950"
-          connectionLineStyle={{ stroke: '#06b6d4', strokeWidth: 2 }}
-          defaultEdgeOptions={{
-            style: { stroke: '#06b6d4', strokeWidth: 2 },
-            animated: true,
-          }}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Controls className="!bg-gray-800 !border-gray-600 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!fill-white" />
-          <Background color="#374151" gap={20} variant={BackgroundVariant.Dots} />
-        </ReactFlow>
+          </>
+        )}
       </div>
+      <div className="flex items-center justify-between p-3 bg-[#050810] border-t border-amber-500/10">
+        <button onClick={() => setShowDemos(!showDemos)} className="text-[9px] font-bold text-amber-500 uppercase tracking-widest py-1.5 px-4 rounded border border-amber-500/20 hover:bg-amber-500/10 transition-all">{showDemos ? 'Hide Demos' : 'Show Demos'}</button>
+        <div className="flex gap-2">
+          <button onClick={handleExportSVG} className="bg-white/5 border border-white/10 rounded px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all text-blue-400">Export SVG</button>
+          <button onClick={handleExportJSON} className="bg-white/5 border border-white/10 rounded px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest hover:bg-white/10 transition-all text-emerald-400">Export JSON</button>
+        </div>
+      </div>
+      {showDemos && <div className="absolute bottom-16 left-3 right-3 glass-panel max-h-[300px] overflow-y-auto p-4 rounded-xl border border-amber-500/20 z-50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{DEMO_CIRCUITS.map(d => <DemoCard key={d.id} demo={d} onLoad={handleLoadDemo} />)}</div>}
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ */
-/*  Exported wrapper with provider                                     */
-/* ------------------------------------------------------------------ */
-
-export default function SchematicBuilder() {
-  return (
-    <ReactFlowProvider>
-      <BuilderInner />
-    </ReactFlowProvider>
-  )
-}
+export default function SchematicBuilder() { return <ReactFlowProvider><BuilderInner /></ReactFlowProvider> }

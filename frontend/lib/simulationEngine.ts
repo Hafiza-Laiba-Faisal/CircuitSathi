@@ -56,13 +56,12 @@ export function simulate(graph: CircuitGraph): SimulationState {
   let head = 0
   while (head < batteryQueue.length) {
     const cur = batteryQueue[head++]
-    const neighbors = adj.get(cur) ?? []
-    for (const nb of neighbors) {
+    adj.get(cur)?.forEach(nb => {
       if (!reachableFromBattery.has(nb)) {
         reachableFromBattery.add(nb)
         batteryQueue.push(nb)
       }
-    }
+    })
   }
 
   const poweredIds = new Set<string>()
@@ -177,43 +176,3 @@ function hasDirectPathToGround(
   return false
 }
 
-function buildCommentary(
-  components: CircuitComponent[],
-  states: ComponentState[],
-  faults: { componentId: string; fault: FaultType; message: string }[],
-  poweredIds: Set<string>,
-): string {
-  const lines: string[] = []
-
-  if (faults.length === 0) {
-    const poweredCount = states.filter(s => s.powered).length
-    lines.push(`Circuit is valid — ${poweredCount} component(s) powered and running.`)
-
-    const litLeds = components.filter(c => c.type === 'led' && poweredIds.has(c.id))
-    if (litLeds.length) lines.push(`${litLeds.length} LED(s) lit — city districts are glowing.`)
-
-    const runningMotors = components.filter(c => c.type === 'motor' && poweredIds.has(c.id))
-    if (runningMotors.length) lines.push(`${runningMotors.length} motor(s) running — factories operational.`)
-
-    const activeResistors = components.filter(c => c.type === 'resistor' && poweredIds.has(c.id))
-    if (activeResistors.length) lines.push(`${activeResistors.length} resistor(s) controlling flow — traffic managed through bottleneck roads.`)
-
-    const caps = components.filter(c => c.type === 'capacitor' && poweredIds.has(c.id))
-    if (caps.length) lines.push(`${caps.length} capacitor(s) stabilising supply — reservoir buffering active.`)
-  } else {
-    lines.push(`${faults.length} fault(s) detected:`)
-    for (const f of faults) {
-      const tag =
-        f.fault === 'short_circuit' ? '[SHORT]' :
-        f.fault === 'open_circuit' ? '[OPEN]' :
-        f.fault === 'missing_resistor' ? '[OVERLOAD RISK]' :
-        f.fault === 'floating_ground' ? '[NO GROUND]' :
-        f.fault === 'overload' ? '[OVERLOAD]' : '[FAULT]'
-      lines.push(`  ${tag} ${f.message}`)
-    }
-    const p = states.filter(s => s.powered).length
-    lines.push(`${p}/${states.length} components powered.`)
-  }
-
-  return lines.join('\n')
-}
