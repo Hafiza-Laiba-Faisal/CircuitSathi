@@ -4,12 +4,13 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// ─── AI Client Factory (Supports OpenRouter & Mistral) ────────────────────────
+// ─── AI Client Factory (Supports Mistral, Cohere & OpenRouter) ────────────────
 const getClient = () => {
   const mistralKey = process.env.MISTRAL_API_KEY
+  const cohereKey = process.env.COHERE_API_KEY
   const openRouterKey = process.env.OPENROUTER_API_KEY
 
-  // 1. Direct Mistral Integration (Priority)
+  // 1. Mistral (Primary)
   if (mistralKey && !mistralKey.includes('your_')) {
     return new OpenAI({
       baseURL: process.env.MISTRAL_BASE_URL || 'https://api.mistral.ai/v1',
@@ -19,9 +20,19 @@ const getClient = () => {
     })
   }
 
-  // 2. OpenRouter Fallback
+  // 2. Cohere (Secondary Fallback)
+  if (cohereKey && !cohereKey.includes('your_')) {
+    return new OpenAI({
+      baseURL: process.env.COHERE_BASE_URL || 'https://api.cohere.ai/compatibility/v1',
+      apiKey: cohereKey,
+      timeout: 180000,
+      maxRetries: 0
+    })
+  }
+
+  // 3. OpenRouter (Final Fallback)
   if (!openRouterKey || openRouterKey.includes('your_')) {
-    console.warn('⚠️ AI API keys are missing. AI features will be disabled.')
+    console.warn('⚠️ No viable AI API keys found.')
     return null
   }
 
@@ -153,7 +164,7 @@ export async function llm(prompt: string, systemPrompt: string, isJSON: boolean 
   if (!client) return null
 
   try {
-    const model = process.env.MISTRAL_MODEL || process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+    const model = process.env.MISTRAL_MODEL || process.env.COHERE_MODEL || process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
     const response = await client.chat.completions.create({
       model,
       messages: [
@@ -176,7 +187,7 @@ export async function llm(prompt: string, systemPrompt: string, isJSON: boolean 
 export async function llmWithTools(prompt: string, systemPrompt: string, tools: any[]): Promise<ToolCallResult | null> {
   const client = getClient()
   if (!client) return null
-  const model = process.env.MISTRAL_MODEL || process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
+  const model = process.env.MISTRAL_MODEL || process.env.COHERE_MODEL || process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free'
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
