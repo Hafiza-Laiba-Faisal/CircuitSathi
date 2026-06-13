@@ -59,11 +59,28 @@ export const SATHI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'generate_tutorial',
-      description: 'Generate a complete STEM tutorial including all steps and the starting circuit.',
+      description: 'Generate a complete electronics tutorial, explanation, circuit diagram and learning steps.',
       parameters: {
         type: 'object',
         properties: {
-          starting_circuit: {
+          topic:       { type: 'string' },
+          language:    { type: 'string', enum: ['en', 'ur'] },
+          explanation: { type: 'string' },
+          narration:   { type: 'string' },
+          steps: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                title:       { type: 'string' },
+                instruction: { type: 'string' },
+                explanation: { type: 'string' },
+                requiredComponents: { type: 'array', items: { type: 'string' } }
+              },
+              required: ['title', 'instruction', 'explanation']
+            }
+          },
+          circuit: {
             type: 'object',
             properties: {
               components: {
@@ -94,22 +111,9 @@ export const SATHI_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
               }
             },
             required: ['components', 'edges']
-          },
-          steps: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title:       { type: 'string' },
-                instruction: { type: 'string' },
-                explanation: { type: 'string' },
-                requiredComponents: { type: 'array', items: { type: 'string' } }
-              },
-              required: ['title', 'instruction', 'explanation']
-            }
           }
         },
-        required: ['starting_circuit', 'steps']
+        required: ['topic', 'language', 'explanation', 'steps', 'circuit']
       }
     }
   }
@@ -218,10 +222,12 @@ export async function llmWithTools(prompt: string, systemPrompt: string, tools: 
         }
 
         if (fnName === 'generate_tutorial') {
-          console.log(`  🏛️  \x1b[32mgenerate_tutorial\x1b[0m: ${args.steps?.length || 0} steps, ${args.starting_circuit?.components?.length || 0} components`)
+          console.log(`  🏛️  \x1b[32mgenerate_tutorial\x1b[0m: ${args.steps?.length || 0} steps, "${args.topic || 'No Topic'}" (${args.language})`)
           
-          if (args.starting_circuit) {
-            collectedCircuits.push(args.starting_circuit)
+          if (args.explanation) finalMessage = args.explanation
+
+          if (args.circuit) {
+            collectedCircuits.push(args.circuit)
           }
 
           if (args.steps && Array.isArray(args.steps)) {
@@ -236,7 +242,15 @@ export async function llmWithTools(prompt: string, systemPrompt: string, tools: 
             }
           }
           
-          messages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify({ success: true, steps_collected: collectedSteps.length }) } as any)
+          messages.push({ 
+            role: 'tool', 
+            tool_call_id: toolCall.id, 
+            content: JSON.stringify({ 
+              success: true, 
+              steps_collected: collectedSteps.length,
+              language_detected: args.language
+            }) 
+          } as any)
         }
       }
     } catch (err: any) {
