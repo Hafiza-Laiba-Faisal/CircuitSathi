@@ -16,7 +16,8 @@ body {
   background-color: var(--bg-deep);
   color: #f8fafc;
   font-family: 'Outfit', sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .glass-panel {

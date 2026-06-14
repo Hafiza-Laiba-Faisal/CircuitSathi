@@ -276,7 +276,11 @@ function InnerCanvas({ forwardedRef }: InnerCanvasProps) {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
-      const compType = e.dataTransfer.getData('application/canvascomponent') as CanvasComponentType
+      const compType = (
+        e.dataTransfer.getData('application/canvascomponent') ||
+        e.dataTransfer.getData('application/circuitcomponent') ||
+        e.dataTransfer.getData('text/plain')
+      ) as CanvasComponentType
       if (!compType) return
 
       const config = COMPONENT_CONFIGS[compType]

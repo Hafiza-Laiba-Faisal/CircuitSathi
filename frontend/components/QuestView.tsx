@@ -157,35 +157,36 @@ const BIOME: Record<BiomeType, {
 
 // ─── Component → RPG colours ──────────────────────────────────────────────────
 const LANDMARK_COL: Record<string, { primary: number; secondary: number; glow: number }> = {
-  battery:       { primary: 0x1a1a00, secondary: 0x0d0d00, glow: 0xffaa00 },
-  resistor:      { primary: 0x1a1008, secondary: 0x0d0804, glow: 0x8b5a30 },
-  capacitor:     { primary: 0x0a0a30, secondary: 0x050518, glow: 0x4040cc },
-  led:           { primary: 0x1a0800, secondary: 0x0d0400, glow: 0xffcc44 },
-  switch:        { primary: 0x1a1a1a, secondary: 0x0d0d0d, glow: 0xaaaacc },
-  ground:        { primary: 0x140a28, secondary: 0x0a0514, glow: 0xaa55ff },
-  motor:         { primary: 0x1a0400, secondary: 0x0d0200, glow: 0xff4400 },
-  wire:          { primary: 0x1a1a1a, secondary: 0x0d0d0d, glow: 0x666666 },
-  inductor:      { primary: 0x140a28, secondary: 0x0a0514, glow: 0xa78bfa },
-  potentiometer: { primary: 0x1a0a00, secondary: 0x0d0500, glow: 0xf97316 },
-  diode:         { primary: 0x1a0c00, secondary: 0x0d0600, glow: 0xfb923c },
-  transistor:    { primary: 0x1a0a1a, secondary: 0x0d050d, glow: 0xd946ef },
-  mosfet:        { primary: 0x180818, secondary: 0x0c040c, glow: 0xc026d3 },
-  ldr:           { primary: 0x1a1a00, secondary: 0x0d0d00, glow: 0xfacc15 },
-  thermistor:    { primary: 0x1a0808, secondary: 0x0d0404, glow: 0xf87171 },
-  voltmeter:     { primary: 0x081a1a, secondary: 0x040d0d, glow: 0x38bdf8 },
-  ammeter:       { primary: 0x081a10, secondary: 0x040d08, glow: 0x34d399 },
-  multimeter:    { primary: 0x0a0a1a, secondary: 0x05050d, glow: 0x60a5fa },
-  oscilloscope:  { primary: 0x0a0a1a, secondary: 0x05050d, glow: 0x818cf8 },
-  probe:         { primary: 0x1a1400, secondary: 0x0d0a00, glow: 0xfbbf24 },
-  buzzer:        { primary: 0x1a081a, secondary: 0x0d040d, glow: 0xe879f9 },
-  relay:         { primary: 0x141a08, secondary: 0x0a0d04, glow: 0xa3e635 },
-  and_gate:      { primary: 0x001a1a, secondary: 0x000d0d, glow: 0x06b6d4 },
-  or_gate:       { primary: 0x001a1a, secondary: 0x000d0d, glow: 0x22d3ee },
-  not_gate:      { primary: 0x001a1a, secondary: 0x000d0d, glow: 0x67e8f9 },
-  xor_gate:      { primary: 0x001a1a, secondary: 0x000d0d, glow: 0x0ea5e9 },
-  clock:         { primary: 0x001a14, secondary: 0x000d0a, glow: 0x2dd4bf },
-  ac_source:     { primary: 0x001a10, secondary: 0x000d08, glow: 0x14b8a6 },
-  transformer:   { primary: 0x001a0c, secondary: 0x000d06, glow: 0x10b981 },
+  // Brighter / neon-leaning palette for frontend simulation
+  battery:       { primary: 0xfff59e, secondary: 0xffdf80, glow: 0xfff59e },
+  resistor:      { primary: 0xffb27a, secondary: 0xff8c59, glow: 0xffa66a },
+  capacitor:     { primary: 0x87aaff, secondary: 0x5f8bff, glow: 0x66a3ff },
+  led:           { primary: 0xffd27a, secondary: 0xffb84a, glow: 0xffe08a },
+  switch:        { primary: 0xcfd8ff, secondary: 0xb0c4ff, glow: 0xdfe8ff },
+  ground:        { primary: 0xd9b3ff, secondary: 0xb78bff, glow: 0xd9b3ff },
+  motor:         { primary: 0xff9db3, secondary: 0xff7a94, glow: 0xff9db3 },
+  wire:          { primary: 0x9fffd6, secondary: 0x6bffd0, glow: 0x8dffd0 },
+  inductor:      { primary: 0xbfa3ff, secondary: 0x9a88ff, glow: 0xc7aaff },
+  potentiometer: { primary: 0xffc88a, secondary: 0xffa95a, glow: 0xffd6a6 },
+  diode:         { primary: 0xffc88a, secondary: 0xffa95a, glow: 0xffb88a },
+  transistor:    { primary: 0xd9a3ff, secondary: 0xc080ff, glow: 0xe0b3ff },
+  mosfet:        { primary: 0xd0a3ff, secondary: 0xb87aff, glow: 0xd8a6ff },
+  ldr:           { primary: 0xfff0a6, secondary: 0xffdf80, glow: 0xfff7b3 },
+  thermistor:    { primary: 0xffb3b3, secondary: 0xff8f8f, glow: 0xffc6c6 },
+  voltmeter:     { primary: 0x8fdfff, secondary: 0x5fcfff, glow: 0x8fdfff },
+  ammeter:       { primary: 0x7ff0c0, secondary: 0x4fe0a0, glow: 0x7ff0c0 },
+  multimeter:    { primary: 0x9fbfff, secondary: 0x6f9fff, glow: 0xa6c0ff },
+  oscilloscope:  { primary: 0xaabfff, secondary: 0x819fff, glow: 0xaabfff },
+  probe:         { primary: 0xffdf80, secondary: 0xffcf60, glow: 0xffe6a6 },
+  buzzer:        { primary: 0xe8b3ff, secondary: 0xd18bff, glow: 0xf0c6ff },
+  relay:         { primary: 0xc8ff9a, secondary: 0x9aff80, glow: 0xd8ffb3 },
+  and_gate:      { primary: 0x6fe8ff, secondary: 0x4fd8ff, glow: 0x6fe8ff },
+  or_gate:       { primary: 0x7ff0ff, secondary: 0x4fe8ff, glow: 0x9ff8ff },
+  not_gate:      { primary: 0x9ff8ff, secondary: 0x6fe8ff, glow: 0xbffcff },
+  xor_gate:      { primary: 0x6fe0ff, secondary: 0x4fbfff, glow: 0x7fdfff },
+  clock:         { primary: 0x6ff0d4, secondary: 0x4fddb3, glow: 0x9ff8e0 },
+  ac_source:     { primary: 0x6ff0d4, secondary: 0x4fddb3, glow: 0x8ff8e0 },
+  transformer:   { primary: 0x6fd8b8, secondary: 0x4fb08a, glow: 0x8fe8c4 },
 }
 
 // ─── Seeded RNG ───────────────────────────────────────────────────────────────
@@ -294,18 +295,23 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
   // Global context (simplified for multi-loop)
   const circuitContext = { vBat: 9, rTotal: 100, current: 0.09 }
 
-  const landmarks: LandmarkData[] = comps.map(comp => {
+  // Dedupe components by id (guard against accidental duplicates)
+  const seen = new Set<string>()
+  const landmarks: LandmarkData[] = []
+  for (const comp of comps) {
+    if (seen.has(comp.id)) continue
+    seen.add(comp.id)
     const x = worldOffsetX + (comp.position.x - minX) * scale
     const y = worldOffsetY + (comp.position.y - minY) * scale
     const cs = sim?.componentStates.find(s => s.componentId === comp.id)
-    return {
+    landmarks.push({
       id: comp.id, type: comp.type, label: comp.label ?? comp.type,
       value: comp.value, x, y,
       powered: cs?.powered ?? false,
       currentFlow: cs?.currentFlow ?? 0,
       fault: null,
-    }
-  })
+    })
+  }
 
   const heroSpeed = 150
   const sceneEdges = graph.edges.map(e => ({ sourceId: e.sourceId, targetId: e.targetId }))
@@ -462,17 +468,19 @@ function drawLandmark(PIXI: any, lm: LandmarkData): any {
   c.label = lm.id
   const col = LANDMARK_COL[lm.type] ?? LANDMARK_COL.wire
   const lit = lm.powered
-  
-  // Make unpowered components much darker (0x333333) for better visibility / contrast
-  const strokeCol = lit ? col.glow : 0x333333
+  // Unpowered stroke: softer dark gray so neon stands out when lit
+  const strokeCol = lit ? col.glow : 0x444444
   const SW = 3  // stroke width
 
-  // Background circle glow
-  const bg = new PIXI.Graphics()
+  // Background halo to make neon pop
   if (lit) {
-    bg.circle(0, 0, 50).fill({ color: col.glow, alpha: 0.08 })
+    const halo = new PIXI.Graphics()
+    halo.beginFill(col.glow, 0.14)
+    halo.drawCircle(0, 0, 52)
+    halo.endFill()
+    halo.blendMode = PIXI.BLEND_MODES.ADD
+    c.addChild(halo)
   }
-  c.addChild(bg)
 
   const g = new PIXI.Graphics()
 
@@ -1052,6 +1060,7 @@ export default function QuestView() {
   const pixiStateRef = useRef<PixiState | null>(null)
   const circuitGraphRef = useRef<CircuitGraph>({ components: [], edges: [] })
   const simulationStateRef = useRef<SimulationState | null>(null)
+  const [isCanvasReady, setIsCanvasReady] = useState(false)
 
   const circuitGraph = useCircuitStore(s => s.circuitGraph)
   const simulationState = useCircuitStore(s => s.simulationState)
@@ -1172,6 +1181,7 @@ export default function QuestView() {
       const canvas = app.canvas as HTMLCanvasElement
       canvas.style.imageRendering = 'pixelated'
       containerRef.current.appendChild(canvas)
+      setIsCanvasReady(true)
 
       const world = new PIXI.Container()
       const tilesContainer = new PIXI.Container()
@@ -1284,6 +1294,7 @@ export default function QuestView() {
         try { pixiStateRef.current.app.destroy(true, { children: true }) } catch (_) {}
         pixiStateRef.current = null
       }
+      setIsCanvasReady(false)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1314,17 +1325,39 @@ export default function QuestView() {
   }, [circuitGraph, simulationState]) // Rebuild when circuit or simulation result changes
 
   const isPaused = pixiStateRef.current?.heroes.some(h => h.pauseMs > 0)
+  const isEmptyCircuit = circuitGraph.components.length === 0
 
   return (
     <div className="w-full h-full relative bg-[#0e1120] flex items-center justify-center overflow-hidden">
       {/* PixiJS canvas — absolute fill with object-contain logic handled by Pixi container if possible */}
       <div 
         ref={containerRef} 
-        className="w-full h-full transition-opacity duration-700" 
-        style={{ 
-          opacity: pixiStateRef.current?.app ? 1 : 0,
-        }}
+        className="w-full h-full min-h-[320px] transition-opacity duration-700"
+        style={{ opacity: 1 }}
       />
+
+      {!isCanvasReady && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0e1120]/80 backdrop-blur-sm">
+          <div className="rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-center">
+            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-amber-400">Loading Simulation</div>
+            <div className="mt-2 text-xs text-slate-400">Preparing the circuit scene...</div>
+          </div>
+        </div>
+      )}
+
+      {isCanvasReady && isEmptyCircuit && (
+        <div className="absolute inset-x-4 top-4 z-10 max-w-xl rounded-2xl border border-amber-400/10 bg-black/50 p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.5)]" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300">No circuit loaded yet</div>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                Drag parts from the left palette into the schematic, or use the onboarding panel to load a demo circuit.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <button
         onClick={handleSkip}

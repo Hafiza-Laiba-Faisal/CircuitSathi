@@ -401,17 +401,6 @@ function BuilderInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [showDemos, setShowDemos] = useState(false)
-  
-  const storeNodes = useCircuitStore(s => s.canvasNodes)
-  const storeEdges = useCircuitStore(s => s.canvasEdges)
-
-  useEffect(() => {
-    if (storeNodes.length !== nodes.length) setNodes([...storeNodes])
-  }, [storeNodes, setNodes, nodes.length])
-
-  useEffect(() => {
-    if (storeEdges.length !== edges.length) setEdges([...storeEdges])
-  }, [storeEdges, setEdges, edges.length])
 
   const prevGraphRef = useRef<string>('')
   useEffect(() => {
@@ -446,7 +435,10 @@ function BuilderInner() {
   const onDragOver = useCallback((e: DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }, [])
   const onDrop = useCallback((e: DragEvent) => {
     e.preventDefault()
-    const type = e.dataTransfer.getData('application/circuitcomponent') as CType
+    const type = (
+      e.dataTransfer.getData('application/circuitcomponent') ||
+      e.dataTransfer.getData('text/plain')
+    ) as CType
     if (!type || !rfInstance.current) return
     const position = rfInstance.current.screenToFlowPosition({ x: e.clientX, y: e.clientY })
     const cfg = CONFIGS[type]
@@ -496,7 +488,11 @@ function BuilderInner() {
                       const c = CONFIGS[type]
                       const isActive = activeToolbarComponent === type
                       return (
-                        <div key={type} draggable onDragStart={e => { e.dataTransfer.setData('application/circuitcomponent', type); e.dataTransfer.effectAllowed = 'move' }}
+                        <div key={type} draggable onDragStart={e => {
+                          e.dataTransfer.setData('application/circuitcomponent', type)
+                          e.dataTransfer.setData('text/plain', type)
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
                           className={`flex items-center gap-3 p-2 rounded-lg cursor-grab transition-all duration-200 border ${isActive ? 'bg-amber-500/20 border-amber-400' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
                           style={{ color: isActive ? '#fbbf24' : c.color }}>
                           <span className="text-lg w-6 text-center">{c.symbol}</span>

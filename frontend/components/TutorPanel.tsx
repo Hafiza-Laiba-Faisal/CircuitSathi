@@ -4,7 +4,11 @@ import { useState } from 'react'
 import { useCircuitStore } from '../store/circuitStore'
 import axios from 'axios'
 
-export default function TutorPanel() {
+interface TutorPanelProps {
+  variant?: 'floating' | 'docked'
+}
+
+export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
   const {
     isTutorialMode,
     tutorialSteps,
@@ -23,6 +27,7 @@ export default function TutorPanel() {
   const loadStepSolution = useCircuitStore(s => s.loadStepSolution)
   const voiceEnabled = useCircuitStore(s => s.voiceEnabled)
   const setVoiceEnabled = useCircuitStore(s => s.setVoiceEnabled)
+  const isDocked = variant === 'docked'
 
   const handleStartTutorial = async (mode: 'manual' | 'topic') => {
     if (mode === 'manual' && !manualText && !selectedFile) return
@@ -64,6 +69,102 @@ export default function TutorPanel() {
   const currentStep = tutorialSteps[activeStepIdx]
 
   if (!isTutorialMode) {
+    if (isDocked) {
+      return (
+        <div className="h-full w-full overflow-y-auto custom-scrollbar bg-[#080c16]/95">
+          <div className="grid min-h-full gap-4 p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <section className="rounded-2xl border border-white/8 bg-black/30 p-4 sm:p-5 shadow-[0_12px_40px_rgba(0,0,0,0.25)]">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest">AI Sathi Tutor</h3>
+                  <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-slate-500">Quick learn or manual import</p>
+                </div>
+                <button
+                  onClick={() => setVoiceEnabled(!voiceEnabled)}
+                  className={`shrink-0 rounded-full px-3 py-2 text-sm transition-all ${voiceEnabled ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-white/5 text-slate-500 hover:text-slate-300'}`}
+                  title={voiceEnabled ? 'Voice Mode On' : 'Voice Mode Off'}
+                >
+                  {voiceEnabled ? '🎧' : '🔇'}
+                </button>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-4">
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-amber-400/80">Quick Learn (Any Topic)</label>
+                  <input
+                    type="text"
+                    className="mb-3 w-full rounded-lg border border-amber-500/20 bg-black/40 p-3 text-xs text-slate-200 focus:border-amber-400/50 focus:outline-none"
+                    placeholder="e.g. Series Circuits, Ohm's Law..."
+                    value={learningTopic}
+                    onChange={(e) => setLearningTopic(e.target.value)}
+                  />
+                  <button
+                    onClick={() => handleStartTutorial('topic')}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 py-3 text-[10px] font-bold uppercase tracking-widest text-black transition-colors hover:bg-amber-400"
+                  >
+                    {loading ? <span className="animate-spin text-lg">◌</span> : 'Start Learning'}
+                  </button>
+                </div>
+
+                <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
+                  <div className="mb-3 text-[9px] uppercase font-bold tracking-[0.25em] text-slate-600">Upload Manual</div>
+                  <label className="flex min-h-[112px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/10 p-4 text-center transition-all hover:border-amber-400/30 hover:bg-white/[0.04]">
+                    <div className="flex flex-col items-center justify-center">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        {selectedFile ? selectedFile.name : 'Choose Manual File'}
+                      </span>
+                      <p className="mt-1 text-[9px] text-slate-600">PDF, DOCX, or Raw Text</p>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.docx,.txt"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-white/8 bg-black/20 p-4">
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5" /></div>
+                  <div className="relative flex justify-center bg-[#0a0e1a] px-2 text-[9px] font-bold uppercase italic tracking-[0.25em] text-slate-700">OR PASTE MANUAL TEXT</div>
+                </div>
+                <textarea
+                  className="mb-3 h-28 w-full rounded-xl border border-white/5 bg-black/40 p-3 text-xs text-slate-200 transition-colors focus:border-amber-400/50 focus:outline-none custom-scrollbar"
+                  placeholder="Paste manual content here..."
+                  value={manualText || ''}
+                  onChange={(e) => {
+                    setManualText(e.target.value)
+                    if (e.target.value) setSelectedFile(null)
+                  }}
+                />
+                {error && <p className="mb-2 text-[10px] font-medium text-rose-500">{error}</p>}
+                <button
+                  onClick={() => handleStartTutorial('manual')}
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 text-xs font-bold uppercase tracking-widest text-white transition-all hover:border-white/20 hover:bg-white/10"
+                >
+                  {loading ? <span className="animate-spin text-lg">◌</span> : 'Parse Lab Manual'}
+                </button>
+              </div>
+            </section>
+
+            <aside className="rounded-2xl border border-white/8 bg-black/20 p-4 sm:p-5 shadow-[0_12px_40px_rgba(0,0,0,0.22)]">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-500">Tutor Notes</h4>
+              </div>
+              <div className="space-y-3 text-sm text-slate-300 leading-relaxed">
+                <p>Use this panel to start a lesson from a topic or manual. It stays docked and scrollable, so it won't hide off-screen at startup.</p>
+                <p className="text-slate-500 text-xs">If you want, I can also make this into a compact bottom drawer with tabs for Learn, Manual, and Voice.</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl p-6 shadow-2xl z-40 animate-in fade-in slide-in-from-right-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-4">
@@ -139,12 +240,12 @@ export default function TutorPanel() {
     )
   }
 
-  if (!isTutorialMode) {
+  if (isTutorialMode) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in duration-700">
-        <div className="max-w-4xl w-full grid grid-cols-2 gap-12 p-12">
+      <div className="h-full w-full overflow-y-auto bg-black/40 backdrop-blur-md animate-in fade-in duration-700">
+        <div className="grid w-full gap-6 p-4 sm:p-6 xl:grid-cols-3">
           {/* Left: Quick Start */}
-          <div className="space-y-6">
+          <div className="space-y-6 rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-6">
              <div className="flex items-center gap-4 mb-2">
                 <div className="w-1 h-8 bg-amber-400 rounded-full" />
                 <h2 className="text-xl font-bold tracking-tight text-white">AI Sathi Learning Console</h2>
@@ -171,7 +272,7 @@ export default function TutorPanel() {
           </div>
 
           {/* Right: Manual Upload */}
-          <div className="flex flex-col justify-center border-l border-white/5 pl-12 space-y-4">
+           <div className="flex flex-col justify-center space-y-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4 sm:p-6 xl:border-l xl:border-white/5 xl:bg-transparent xl:pl-12">
              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.25em]">Laboratory Integration</span>
              <label className="group flex items-center gap-4 p-4 border border-white/5 bg-white/[0.02] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-all">
                 <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">📤</div>

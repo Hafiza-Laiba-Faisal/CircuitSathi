@@ -199,6 +199,7 @@ function PaletteItem({ type }: PaletteItemProps) {
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/canvascomponent', type)
+    e.dataTransfer.setData('text/plain', type)
     e.dataTransfer.effectAllowed = 'copy'
   }
 

@@ -4,11 +4,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useConversation } from '@elevenlabs/react'
 import { useCircuitStore } from '../store/circuitStore'
 
-const DEFAULT_VOICE_ID = 'pNInz6obpgDQGcFmaJgB' // ElevenLabs Adam voice
 const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'agent_8401kkrgjbe0ezsrrdefnawm3ymc'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export default function VoiceAgent() {
-  const [apiKey, setApiKey] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
 
@@ -17,11 +16,9 @@ export default function VoiceAgent() {
 
   const { circuitGraph, simulationState, currentNarration, voiceEnabled, setVoiceEnabled } = useCircuitStore()
 
-  // Load saved settings from localStorage
+  // Initialize audio and restore voice preference from localStorage
   useEffect(() => {
-    const savedKey = localStorage.getItem('elevenlabs_api_key') || ''
     const savedAutoNarrate = localStorage.getItem('elevenlabs_auto_narrate')
-    setApiKey(savedKey)
     // Default to global voiceEnabled if not set
     if (savedAutoNarrate !== null) setVoiceEnabled(savedAutoNarrate === 'true')
     audioRef.current = new Audio()
@@ -136,7 +133,7 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
 
   // ─── TTS ─────────────────────────────────────────────────────────────────────
   const speak = useCallback(async (text: string) => {
-    if (!apiKey || isSpeaking) return
+    if (isSpeaking) return
     const cleanText = text
       .replace(/[^\x00-\x7F]/g, ' ')
       .replace(/[⚡🔥💡🔋🚪⏚⚙️⚠️🔌📍🗺️⏸▶]/g, '')
@@ -149,17 +146,12 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
     setIsSpeaking(true)
 
     try {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_VOICE_ID}`, {
+      const res = await fetch(`${API_BASE}/api/narrate`, {
         method: 'POST',
         headers: {
-          'xi-api-key': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          text: cleanText,
-          model_id: 'eleven_turbo_v2',
-          voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true },
-        }),
+        body: JSON.stringify({ text: cleanText }),
       })
 
       if (!res.ok) {
@@ -181,7 +173,7 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
       console.error('TTS error:', err)
       setIsSpeaking(false)
     }
-  }, [apiKey, isSpeaking])
+  }, [isSpeaking])
 
   const stopSpeak = useCallback(() => {
     if (audioRef.current) {
@@ -198,13 +190,13 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
   // Auto-narrate: speak every new story step automatically
   const lastNarrationRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!voiceEnabled || !apiKey || !currentNarration) return
+    if (!voiceEnabled || !currentNarration) return
     if (currentNarration === lastNarrationRef.current) return
     lastNarrationRef.current = currentNarration
     // Stop any currently playing audio so the new step starts immediately
     if (isSpeaking) stopSpeak()
     speak(currentNarration)
-  }, [currentNarration, voiceEnabled, apiKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentNarration, voiceEnabled, speak, isSpeaking, stopSpeak])
 
   // ─── Agent status colors ──────────────────────────────────────────────────────
   const STATUS_COLOR: Record<string, string> = {
@@ -248,20 +240,6 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
             VOICE SETTINGS
           </div>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#94a3b8' }}>ElevenLabs API Key (for TTS)</span>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={e => { setApiKey(e.target.value); localStorage.setItem('elevenlabs_api_key', e.target.value) }}
-              placeholder="xi-..."
-              style={{
-                background: '#1e293b', border: '1px solid #475569', color: '#f8fafc',
-                fontFamily: 'monospace', fontSize: 10, padding: '5px 8px', borderRadius: 4, width: '100%',
-              }}
-            />
-          </label>
-
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#94a3b8' }}>Auto-narrate stories</span>
             <button
@@ -288,7 +266,7 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
           }}>
             <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569', marginBottom: 4 }}>VOICE AGENT</div>
             <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#64748b', lineHeight: 1.6 }}>
-              Ground Wire Agent (WebRTC)<br />
+              CambAI narration via backend<br />
               {circuitGraph.components.length} components &bull; {simulationState?.faults.length ?? 0} fault(s)
             </div>
           </div>
@@ -361,21 +339,21 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
         ) : (
           <button
             onClick={() => currentNarration && speak(currentNarration)}
-            disabled={!apiKey || !currentNarration}
-            title={!apiKey ? 'Add API key in settings' : !currentNarration ? 'No story to narrate' : 'Narrate current story'}
+            disabled={!currentNarration}
+            title={!currentNarration ? 'No story to narrate' : 'Narrate current story'}
             style={{
               background: 'rgba(15,23,42,0.88)',
-              border: `2px solid ${!apiKey || !currentNarration ? '#1e293b' : '#334155'}`,
+              border: `2px solid ${!currentNarration ? '#1e293b' : '#334155'}`,
               borderRadius: 6,
-              color: !apiKey || !currentNarration ? '#334155' : '#94a3b8',
+              color: !currentNarration ? '#334155' : '#94a3b8',
               fontSize: 14,
               padding: '6px 10px',
-              cursor: !apiKey || !currentNarration ? 'not-allowed' : 'pointer',
-              opacity: !apiKey || !currentNarration ? 0.4 : 1,
+              cursor: !currentNarration ? 'not-allowed' : 'pointer',
+              opacity: !currentNarration ? 0.4 : 1,
               transition: 'all 0.15s',
             }}
-            onMouseEnter={e => { if (apiKey && currentNarration) e.currentTarget.style.borderColor = '#60a5fa' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = !apiKey || !currentNarration ? '#1e293b' : '#334155' }}
+            onMouseEnter={e => { if (currentNarration) e.currentTarget.style.borderColor = '#60a5fa' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = !currentNarration ? '#1e293b' : '#334155' }}
           >
             🔊
           </button>

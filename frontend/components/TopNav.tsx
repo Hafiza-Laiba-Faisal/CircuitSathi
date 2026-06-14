@@ -64,7 +64,7 @@ export default function TopNav() {
   }
 
   return (
-    <nav className="relative flex items-center justify-between px-6 py-3 border-b border-white/10 bg-black/40 backdrop-blur-md z-50">
+    <nav className="relative flex flex-col gap-4 px-4 py-3 border-b border-white/10 bg-black/40 backdrop-blur-md z-50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       {/* Brand */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
@@ -79,10 +79,9 @@ export default function TopNav() {
       </div>
 
       {/* Layout Controls */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
-        
+      <div className="flex w-full flex-col gap-3 sm:absolute sm:left-1/2 sm:w-auto sm:-translate-x-1/2 sm:flex-row sm:items-center sm:gap-6">
         {/* Tutor Position */}
-        <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+        <div className="flex flex-wrap items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
           <span className="text-[9px] text-slate-500 uppercase tracking-widest px-3 font-bold">Tutor</span>
           {['bottom', 'right', 'hidden'].map((layout) => (
             <button
@@ -100,7 +99,7 @@ export default function TopNav() {
         </div>
 
         {/* Schematic Width */}
-        <div className="flex items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+        <div className="flex flex-wrap items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
           <span className="text-[9px] text-slate-500 uppercase tracking-widest px-3 font-bold">Schematic</span>
           {[30, 50, 70].map((pct) => (
             <button
