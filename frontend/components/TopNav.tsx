@@ -24,6 +24,8 @@ export default function TopNav() {
     projectName,
     tutorLayout,
     setTutorLayout,
+    tutorPanelWidth,
+    setTutorPanelWidth,
     schematicWidthPct,
     setSchematicWidthPct,
   } = useCircuitStore()
@@ -83,7 +85,7 @@ export default function TopNav() {
         {/* Tutor Position */}
         <div className="flex flex-wrap items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
           <span className="text-[9px] text-slate-500 uppercase tracking-widest px-3 font-bold">Tutor</span>
-          {['bottom', 'right', 'hidden'].map((layout) => (
+          {['bottom', 'right', 'top', 'hidden'].map((layout) => (
             <button
               key={layout}
               onClick={() => setTutorLayout(layout as any)}
@@ -97,6 +99,25 @@ export default function TopNav() {
             </button>
           ))}
         </div>
+
+        {tutorLayout === 'right' && (
+          <div className="flex flex-wrap items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest px-3 font-bold">Tutor</span>
+            {[320, 400, 520].map((w) => (
+              <button
+                key={w}
+                onClick={() => setTutorPanelWidth(w)}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
+                  tutorPanelWidth === w
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {w}px
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Schematic Width */}
         <div className="flex flex-wrap items-center gap-1 bg-slate-900/50 p-1 rounded-xl border border-white/5">

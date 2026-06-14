@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useCircuitStore } from '../store/circuitStore'
 import axios from 'axios'
 
@@ -25,10 +25,14 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
   const [error, setError] = useState(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [learningTopic, setLearningTopic] = useState('')
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const loadStepSolution = useCircuitStore(s => s.loadStepSolution)
   const voiceEnabled = useCircuitStore(s => s.voiceEnabled)
   const setVoiceEnabled = useCircuitStore(s => s.setVoiceEnabled)
   const isDocked = variant === 'docked'
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const currentAudioUrlRef = useRef<string | null>(null)
 
   const handleStartTutorial = async (mode: 'manual' | 'topic') => {
     if (mode === 'manual' && !manualText && !selectedFile) return
@@ -70,7 +74,255 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
     }
   }
 
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio()
+    audioRef.current.onended = () => {
+      setIsSpeaking(false)
+      if (currentAudioUrlRef.current) {
+        URL.revokeObjectURL(currentAudioUrlRef.current)
+        currentAudioUrlRef.current = null
+      }
+    }
+  }, [])
+
+  // Voice synthesis function
+  const speak = useCallback(async (text: string) => {
+    if (isSpeaking) return
+    const cleanText = text
+      .replace(/[^\x00-\x7F]/g, ' ')
+      .replace(/[⚡🔥💡🔋🚪⏚⚙️⚠️🔌📍🗺️⏸▶]/g, '')
+      .replace(/\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 600)
+
+    if (!cleanText) return
+    setIsSpeaking(true)
+
+    try {
+      const res = await fetch('http://localhost:3001/api/narrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText }),
+      })
+
+      if (!res.ok) {
+        console.error('TTS API error:', res.status, await res.text())
+        setIsSpeaking(false)
+        return
+      }
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      currentAudioUrlRef.current = url
+      if (audioRef.current) {
+        audioRef.current.src = url
+        await audioRef.current.play()
+      } else {
+        setIsSpeaking(false)
+      }
+    } catch (err) {
+      console.error('TTS error:', err)
+      setIsSpeaking(false)
+    }
+  }, [isSpeaking])
+
+  const stopSpeak = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+    setIsSpeaking(false)
+    if (currentAudioUrlRef.current) {
+      URL.revokeObjectURL(currentAudioUrlRef.current)
+      currentAudioUrlRef.current = null
+    }
+  }, [])
+
   const currentStep = tutorialSteps[activeStepIdx]
+
+  // Tutorial Mode - Responsive Layout
+  if (isTutorialMode) {
+    // Guard: ensure we have valid step data
+    if (!currentStep || !tutorialSteps.length) {
+      return (
+        <div className="h-full w-full flex items-center justify-center bg-[#080c16]/95">
+          <div className="text-center p-6">
+            <p className="text-sm text-slate-400">Loading tutorial...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if (isDocked) {
+      // Docked: Use 3-column layout for large screens
+      return (
+        <div className="h-full w-full overflow-y-auto custom-scrollbar bg-[#080c16]/95">
+          <div className="grid w-full gap-6 p-4 sm:p-6 xl:grid-cols-3">
+            {/* Left: Concept & Summary */}
+            <div className="xl:border-r xl:border-white/5 p-4 sm:p-6 flex flex-col justify-center">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="w-4 h-1 bg-amber-400 rounded-full" />
+                <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Concept</h2>
+              </div>
+              <h2 className="text-lg sm:text-2xl font-bold text-white mb-4 tracking-tight leading-tight">{currentStep?.title || 'Step ' + (activeStepIdx + 1)}</h2>
+              <div className="bg-amber-400/5 border border-amber-400/10 p-4 rounded-xl mb-4">
+                <p className="text-xs sm:text-sm text-amber-200/80 leading-relaxed font-medium italic">
+                  "{currentStep?.explanation || 'Learn the concepts for this step.'}"
+                </p>
+              </div>
+              <button
+                onClick={() => currentStep?.explanation && speak(currentStep.explanation)}
+                disabled={!currentStep?.explanation}
+                className={`w-full py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                  isSpeaking
+                    ? 'bg-blue-500/20 border border-blue-500 text-blue-400'
+                    : 'bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:border-amber-500 hover:bg-amber-500/20'
+                }`}
+              >
+                {isSpeaking ? '⏸ Stop' : '🔊 Explain'}
+              </button>
+            </div>
+
+            {/* Middle: Steps & Tasks */}
+            <div className="xl:border-r xl:border-white/5 p-4 sm:p-6 flex flex-col justify-center">
+              <div className="flex items-center justify-between mb-6 gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-1 bg-emerald-400 rounded-full" />
+                  <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Execution</h2>
+                </div>
+                <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest whitespace-nowrap">Step {activeStepIdx + 1}/{tutorialSteps.length}</span>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="glass-panel-light p-4 rounded-xl border border-white/5 bg-white/5">
+                  <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest block mb-3">Live Instruction</span>
+                  <p className="text-xs sm:text-sm font-medium text-slate-200 leading-relaxed mb-3">{currentStep?.instruction || 'Complete this step.'}</p>
+                  <button
+                    onClick={() => currentStep?.instruction && speak(currentStep.instruction)}
+                    disabled={!currentStep?.instruction}
+                    className={`w-full py-2 px-3 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                      isSpeaking
+                        ? 'bg-blue-500/20 border border-blue-500 text-blue-400'
+                        : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:border-emerald-500 hover:bg-emerald-500/20'
+                    }`}
+                  >
+                    {isSpeaking ? '⏸ Stop' : '🔊 Read'}
+                  </button>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setActiveStepIdx(Math.max(0, activeStepIdx - 1))}
+                    className="flex-1 py-2 sm:py-3 text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5 rounded-lg"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setActiveStepIdx(Math.min(tutorialSteps.length - 1, activeStepIdx + 1))}
+                    className="flex-[2] py-2 sm:py-3 bg-white text-black font-bold text-[9px] uppercase tracking-widest rounded-lg hover:bg-slate-200 transition-all"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Goal Criteria */}
+            <div className="p-4 sm:p-6 flex flex-col justify-center">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="w-4 h-1 bg-blue-400 rounded-full" />
+                <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Goals</h2>
+              </div>
+              
+              <div className="space-y-3">
+                {/* Required Components */}
+                {currentStep?.goalCriteria?.requiredComponents && currentStep.goalCriteria.requiredComponents.length > 0 && (
+                  <div className="bg-black/20 border border-white/5 rounded-xl p-4 flex flex-col justify-center">
+                    <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                      Components Needed
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {currentStep.goalCriteria.requiredComponents.map((comp, i) => (
+                        <span key={i} className="text-[8px] px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-blue-300">
+                          {comp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Powered Goal */}
+                {currentStep?.goalCriteria?.powered !== undefined && (
+                  <div className={`border rounded-xl p-4 flex flex-col justify-center ${currentStep.goalCriteria.powered ? 'bg-green-500/5 border-green-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-widest block ${currentStep.goalCriteria.powered ? 'text-green-400' : 'text-amber-400'}`}>
+                      {currentStep.goalCriteria.powered ? '✓ Must be Powered' : 'Can be Unpowered'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Min Voltage */}
+                {currentStep?.goalCriteria?.minVoltage !== undefined && (
+                  <div className="bg-slate-500/5 border border-slate-500/20 rounded-xl p-3 flex flex-col justify-center">
+                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Min Voltage: {currentStep.goalCriteria.minVoltage}V</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    } else {
+      // Floating: Compact layout
+      return (
+        <div className="h-full w-full flex flex-col overflow-hidden bg-black/40 backdrop-blur-md animate-in fade-in duration-700 rounded-2xl border border-white/10">
+          <div className="flex-shrink-0 border-b border-white/5 p-4 bg-white/[0.02]">
+            <h3 className="text-sm font-bold text-amber-400 uppercase tracking-widest">{currentStep?.title || 'Step ' + (activeStepIdx + 1)}</h3>
+            <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Step {activeStepIdx + 1} of {tutorialSteps.length}</p>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+            <div className="bg-amber-400/5 border border-amber-400/10 p-3 rounded-lg">
+              <p className="text-xs text-amber-200/80 leading-relaxed font-medium italic">{currentStep?.explanation || 'Learn the concepts.'}</p>
+            </div>
+            
+            <div className="bg-white/5 border border-white/5 p-4 rounded-lg">
+              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest block mb-2">Instruction</span>
+              <p className="text-xs font-medium text-slate-200 leading-relaxed">{currentStep?.instruction || 'Complete this step.'}</p>
+            </div>
+            
+            {currentStep?.goalCriteria && (
+              <div className="bg-black/20 border border-white/5 p-3 rounded-lg">
+                <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest block mb-2">Goal Criteria</span>
+                {currentStep.goalCriteria.requiredComponents && currentStep.goalCriteria.requiredComponents.length > 0 && (
+                  <p className="text-xs text-slate-300 mb-2">Components: {currentStep.goalCriteria.requiredComponents.join(', ')}</p>
+                )}
+                {currentStep.goalCriteria.powered !== undefined && (
+                  <p className="text-xs text-slate-300">{currentStep.goalCriteria.powered ? '✓ Must be powered' : 'Can be unpowered'}</p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-shrink-0 flex gap-2 p-4 border-t border-white/5 bg-white/[0.02]">
+            <button
+              onClick={() => setActiveStepIdx(Math.max(0, activeStepIdx - 1))}
+              className="flex-1 py-2 text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5 rounded-lg hover:bg-white/5"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => setActiveStepIdx(Math.min(tutorialSteps.length - 1, activeStepIdx + 1))}
+              className="flex-1 py-2 bg-white text-black font-bold text-[9px] uppercase tracking-widest rounded-lg hover:bg-slate-200 transition-all"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )
+    }
+  }
 
   if (!isTutorialMode) {
     if (isDocked) {
@@ -169,6 +421,7 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
       )
     }
 
+    // Floating: Compact input panel
     return (
       <div className="absolute top-20 right-6 w-80 glass-panel rounded-2xl p-6 shadow-2xl z-40 animate-in fade-in slide-in-from-right-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
         <div className="flex items-center justify-between mb-4">
@@ -243,146 +496,4 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
       </div>
     )
   }
-
-  if (isTutorialMode) {
-    return (
-      <div className="h-full w-full overflow-y-auto bg-black/40 backdrop-blur-md animate-in fade-in duration-700">
-        <div className="grid w-full gap-6 p-4 sm:p-6 xl:grid-cols-3">
-          {/* Left: Quick Start */}
-          <div className="space-y-6 rounded-2xl border border-white/5 bg-black/20 p-4 sm:p-6">
-             <div className="flex items-center gap-4 mb-2">
-                <div className="w-1 h-8 bg-amber-400 rounded-full" />
-                <h2 className="text-xl font-bold tracking-tight text-white">AI Sathi Learning Console</h2>
-             </div>
-             <p className="text-xs text-slate-400 leading-relaxed uppercase tracking-wider">Describe a topic or upload your laboratory manual to begin the interactive demonstration.</p>
-             
-             <div className="space-y-4 pt-4">
-                <div className="relative group">
-                  <input 
-                    type="text"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400/50 transition-all"
-                    placeholder="e.g. Logic Gates, Full Wave Rectifier..."
-                    value={learningTopic}
-                    onChange={(e) => setLearningTopic(e.target.value)}
-                  />
-                  <button
-                    onClick={() => handleStartTutorial('topic')}
-                    className="absolute right-2 top-2 px-6 py-2 rounded-lg bg-amber-400 text-black font-bold text-[10px] uppercase tracking-widest hover:bg-amber-300 transition-all shadow-xl shadow-amber-400/10"
-                  >
-                    {loading ? '...' : 'Explore'}
-                  </button>
-                </div>
-             </div>
-          </div>
-
-          {/* Right: Manual Upload */}
-           <div className="flex flex-col justify-center space-y-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4 sm:p-6 xl:border-l xl:border-white/5 xl:bg-transparent xl:pl-12">
-             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.25em]">Laboratory Integration</span>
-             <label className="group flex items-center gap-4 p-4 border border-white/5 bg-white/[0.02] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-all">
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">📤</div>
-                <div>
-                   <h3 className="text-xs font-bold text-slate-300 group-hover:text-amber-400 transition-colors uppercase tracking-wider">
-                     {selectedFile ? selectedFile.name : 'Upload Lab Manual'}
-                   </h3>
-                   <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-widest font-mono">PDF / DOC / TXT</p>
-                </div>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  accept=".pdf,.docx,.txt"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                />
-             </label>
-             <button
-               onClick={() => handleStartTutorial('manual')}
-               className="w-full py-4 text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-[0.3em] transition-all border border-white/10 rounded-xl hover:border-white/30"
-             >
-               {loading ? 'Analyzing...' : 'Parse Manual'}
-             </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="h-full w-full flex overflow-hidden">
-      {/* 1. LEFT: Concept & Summary */}
-      <div className="w-1/3 border-r border-white/5 p-8 flex flex-col justify-center overflow-y-auto custom-scrollbar">
-        <div className="flex items-center gap-3 mb-6">
-          <span className="w-4 h-1 bg-amber-400 rounded-full" />
-          <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Phase 01: Concept</h2>
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-4 tracking-tight leading-tight">{currentStep.title}</h2>
-        <div className="bg-amber-400/5 border border-amber-400/10 p-5 rounded-2xl">
-          <p className="text-xs text-amber-200/80 leading-relaxed font-medium italic">
-            "{currentStep.explanation}"
-          </p>
-        </div>
-      </div>
-
-      {/* 2. MIDDLE: Steps & Tasks */}
-      <div className="w-1/3 border-r border-white/5 p-8 flex flex-col justify-center bg-black/10">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-             <span className="w-4 h-1 bg-emerald-400 rounded-full" />
-             <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Phase 02: Execution</h2>
-          </div>
-          <span className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Step {activeStepIdx + 1} of {tutorialSteps.length}</span>
-        </div>
-        
-        <div className="space-y-6">
-           <div className="glass-panel-light p-6 rounded-2xl border border-white/5 bg-white/5">
-              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest block mb-3">Live Instruction</span>
-              <p className="text-sm font-medium text-slate-200 leading-relaxed">{currentStep.instruction}</p>
-           </div>
-           
-           <div className="flex gap-4">
-              <button
-                onClick={() => setActiveStepIdx(Math.max(0, activeStepIdx - 1))}
-                className="flex-1 py-4 text-[9px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/5 rounded-xl"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setActiveStepIdx(Math.min(tutorialSteps.length - 1, activeStepIdx + 1))}
-                className="flex-[2] py-4 bg-white text-black font-bold text-[9px] uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all shadow-2xl shadow-white/5"
-              >
-                Next Procedure
-              </button>
-           </div>
-        </div>
-      </div>
-
-      {/* 3. RIGHT: Hints & Quiz */}
-      <div className="w-1/3 p-8 flex flex-col justify-center">
-        <div className="flex items-center gap-3 mb-6">
-           <span className="w-4 h-1 bg-blue-400 rounded-full" />
-           <h2 className="text-[11px] font-bold text-slate-500 tracking-[0.3em] uppercase">Phase 03: Validation</h2>
-        </div>
-        
-        <div className="grid grid-rows-2 gap-4 h-full py-4">
-           {/* Hint Section */}
-           <div className="bg-black/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-center">
-              <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span className="animate-pulse">💡</span> Learning Hint
-              </span>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Connect the components as shown in the schematic above. Watch for the electron flow indicators in the simulation view.
-              </p>
-           </div>
-
-           {/* Quiz/Challenge Section */}
-           <div className="bg-amber-400/5 border border-dashed border-amber-400/20 rounded-2xl p-6 flex flex-col justify-center group cursor-pointer hover:bg-amber-400/10 transition-all">
-              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mb-3">Knowledge Check</span>
-              <p className="text-[11px] text-slate-300 font-medium group-hover:text-white">What happens to the current if the resistance is doubled in this configuration?</p>
-              <div className="mt-4 flex gap-2">
-                 <span className="px-2 py-1 bg-black/40 rounded text-[8px] font-bold text-slate-500 hover:text-amber-400 transition-colors uppercase border border-white/5">Option A</span>
-                 <span className="px-2 py-1 bg-black/40 rounded text-[8px] font-bold text-slate-500 hover:text-amber-400 transition-colors uppercase border border-white/5">Option B</span>
-              </div>
-           </div>
-        </div>
-      </div>
-    </div>
-  )
 }

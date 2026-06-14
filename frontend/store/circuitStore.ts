@@ -6,7 +6,7 @@ import { LEVELS } from '../lib/levels'
 
 type ActiveMode = 'build' | 'upload' | 'learn' | 'debug' | 'challenge'
 export type CanvasStatus = 'idle' | 'drawing' | 'simulating' | 'updated' | 'incomplete' | 'fault'
-export type TutorLayout = 'bottom' | 'right' | 'hidden'
+export type TutorLayout = 'bottom' | 'right' | 'top' | 'hidden'
 
 const TYPE_MAP: Record<string, ComponentType> = {
   inductor: 'resistor',
@@ -48,10 +48,12 @@ interface CircuitStore {
 
   // Layout Preferences
   tutorLayout: TutorLayout
+  tutorPanelWidth: number
   schematicWidthPct: number
 
   setActiveMode: (mode: ActiveMode) => void
   setTutorLayout: (layout: TutorLayout) => void
+  setTutorPanelWidth: (width: number) => void
   setSchematicWidthPct: (pct: number) => void
   setCircuitGraph: (graph: CircuitGraph) => void
   setSimulationState: (state: SimulationState | null) => void
@@ -114,10 +116,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   voiceEnabled: false,
 
   tutorLayout: 'bottom',
+  tutorPanelWidth: 400,
   schematicWidthPct: 50,
 
   setActiveMode: (mode) => set({ activeMode: mode }),
   setTutorLayout: (layout) => set({ tutorLayout: layout }),
+  setTutorPanelWidth: (width) => set({ tutorPanelWidth: width }),
   setSchematicWidthPct: (pct) => set({ schematicWidthPct: pct }),
 
   setCircuitGraph: (graph) => {

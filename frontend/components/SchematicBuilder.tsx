@@ -407,11 +407,19 @@ function DemoCard({ demo, onLoad }: { demo: DemoCircuit; onLoad: (g: CircuitGrap
 
 function BuilderInner() {
   const rfInstance = useRef<ReactFlowInstance | null>(null)
-  const { setCircuitGraph, pendingLoad, clearPendingLoad, setSelectedComponentId, selectedComponentId, activeMode, requestCircuitLoad, activeToolbarComponent } = useCircuitStore()
+  const { setCircuitGraph, pendingLoad, clearPendingLoad, setSelectedComponentId, selectedComponentId, activeMode, requestCircuitLoad, activeToolbarComponent, canvasNodes: storeNodes, canvasEdges: storeEdges, setCanvasNodes, setCanvasEdges } = useCircuitStore()
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [showDemos, setShowDemos] = useState(false)
+
+  // Sync store's canvasNodes/canvasEdges into local React Flow state
+  useEffect(() => {
+    if (storeNodes.length > 0 || storeEdges.length > 0) {
+      setNodes(storeNodes)
+      setEdges(storeEdges)
+    }
+  }, [storeNodes, storeEdges, setNodes, setEdges])
 
   const prevGraphRef = useRef<string>('')
   useEffect(() => {
@@ -432,6 +440,9 @@ function BuilderInner() {
     if (key === prevGraphRef.current) return
     prevGraphRef.current = key
     setCircuitGraph(graph)
+    // Also sync back to store for consistency
+    setCanvasNodes(nodes)
+    setCanvasEdges(edges)
   }, [nodes, edges, setCircuitGraph])
 
   useEffect(() => {

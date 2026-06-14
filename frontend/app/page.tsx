@@ -12,8 +12,9 @@ const VoiceAgent = dynamic(() => import('../components/VoiceAgent'), { ssr: fals
 const TutorPanel = dynamic(() => import('../components/TutorPanel'), { ssr: false })
 
 export default function Home() {
-  const { isTutorialMode, tutorLayout, schematicWidthPct, setSchematicWidthPct, requestCircuitLoad, setTutorLayout, circuitGraph } = useCircuitStore()
+  const { isTutorialMode, tutorLayout, schematicWidthPct, tutorPanelWidth, setSchematicWidthPct, setTutorPanelWidth, requestCircuitLoad, setTutorLayout, circuitGraph } = useCircuitStore()
   const [isDragging, setIsDragging] = useState(false)
+  const [isTutorDragging, setIsTutorDragging] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
@@ -53,20 +54,44 @@ export default function Home() {
     }
   }, [isDragging, setSchematicWidthPct])
 
+  useEffect(() => {
+    if (!isTutorDragging) return
+    const handleTutorResize = (e: MouseEvent) => {
+      const maxWidth = Math.min(window.innerWidth * 0.5, 620)
+      const minWidth = 320
+      const width = Math.max(minWidth, Math.min(maxWidth, window.innerWidth - e.clientX))
+      setTutorPanelWidth(width)
+    }
+    const handleTutorUp = () => setIsTutorDragging(false)
+    window.addEventListener('mousemove', handleTutorResize)
+    window.addEventListener('mouseup', handleTutorUp)
+    return () => {
+      window.removeEventListener('mousemove', handleTutorResize)
+      window.removeEventListener('mouseup', handleTutorUp)
+    }
+  }, [isTutorDragging, setTutorPanelWidth])
+
   return (
-    <div className={`flex min-h-screen flex-col text-white overflow-y-auto overflow-x-hidden bg-[#050810] selection:bg-amber-400/30 ${isDragging ? 'select-none cursor-col-resize' : ''}`}>
+    <div className={`flex min-h-screen flex-col text-white bg-[#050810] selection:bg-amber-400/30 ${isDragging ? 'select-none cursor-col-resize' : ''}`}>
       {/* 1. TOP BAR - Fixed Height */}
       <header className="flex-shrink-0">
         <TopNav />
       </header>
 
       {/* 2. DYNAMIC WORKSPACE */}
-      <div className="flex flex-1 min-h-0 flex-col sm:flex-row" style={{ '--pct': schematicWidthPct } as any}>
+      <div className="flex flex-1 min-h-0 flex-col sm:flex-row overflow-visible" style={{ '--pct': schematicWidthPct } as any}>
         
-        {/* Left/Middle Column: Labs & Bottom Tutor */}
-        <div className="flex flex-1 min-h-0 flex-col transition-all duration-500">
-          
-          <main className="flex flex-1 min-h-0 flex-col gap-3 p-3 lg:min-h-[500px] lg:flex-row">
+        {/* Main Content: Labs & Bottom Tutor */}
+        <div className="flex flex-1 min-h-0 flex-col transition-all duration-500 overflow-visible">
+          {tutorLayout === 'top' && (
+            <section className="flex-shrink-0 h-[320px] w-full overflow-hidden rounded-b-3xl border-b border-white/10 bg-[#080c16]/95 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-3xl">
+              <div className="h-full overflow-y-auto custom-scrollbar p-3">
+                <TutorPanel variant="docked" />
+              </div>
+            </section>
+          )}
+
+          <main className="flex flex-1 min-h-0 flex-col gap-3 p-3 lg:min-h-0 lg:flex-row overflow-hidden">
             {/* Schematic Editor */}
             <section 
               style={{ flexBasis: `var(--desk-w)` } as any}
@@ -75,7 +100,10 @@ export default function Home() {
               <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                  <h2 className="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">Engineering Schematic</h2>
+                  <h2 className="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">Schematic Editor</h2>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-500/5 border border-slate-500/20">
+                  <span className="text-[9px] font-mono text-slate-400 tracking-widest uppercase">Build</span>
                 </div>
               </div>
               <div className="flex-1 relative overflow-hidden">
@@ -83,12 +111,13 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Draggable Splitter (Hidden on mobile) */}
+            {/* Draggable Splitter - Enhanced for better UX */}
             <div 
-              className="hidden lg:flex w-3 flex-col justify-center items-center cursor-col-resize hover:bg-white/10 active:bg-white/20 rounded-full transition-colors z-50 group"
+              className="hidden lg:flex w-1.5 flex-col justify-center items-center cursor-col-resize hover:bg-amber-400/30 active:bg-amber-400/50 rounded-full transition-colors z-50 group relative"
               onMouseDown={(e) => { e.preventDefault(); setIsDragging(true) }}
+              title="Drag to resize"
             >
-               <div className={`w-1 h-12 rounded-full transition-colors ${isDragging ? 'bg-amber-400' : 'bg-slate-700 group-hover:bg-amber-400/50'}`} />
+               <div className={`absolute w-8 h-12 rounded-full transition-all ${isDragging ? 'bg-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.8)]' : 'bg-slate-700 group-hover:bg-amber-400/80'}`} />
             </div>
 
             {/* Simulation View */}
@@ -99,9 +128,14 @@ export default function Home() {
               <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  <h2 className="text-[10px] font-bold text-amber-400/80 tracking-[0.2em] uppercase">Interactive Simulation</h2>
+                  <h2 className="text-[10px] font-bold text-amber-400/80 tracking-[0.2em] uppercase">Simulation Engine</h2>
                 </div>
-                <div className="text-[9px] font-mono text-slate-600 tracking-widest uppercase">Live Engine Active</div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[9px] font-mono text-amber-300/80 tracking-widest uppercase">Live</span>
+                  </div>
+                </div>
               </div>
               <div className="flex-1 relative overflow-hidden">
                 <QuestView />
@@ -110,9 +144,9 @@ export default function Home() {
             </section>
           </main>
 
-          {/* Bottom AI Tutor (if active) */}
+          {/* Bottom AI Tutor (if active) - Improved layout */}
           {tutorLayout === 'bottom' && (
-            <footer className={`${isTutorialMode ? 'h-[320px]' : 'h-[250px]'} relative flex-shrink-0 overflow-hidden border-t border-white/10 bg-[#080c16]/95 shadow-[0_-20px_60px_rgba(0,0,0,0.8)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] backdrop-blur-3xl z-[60] max-sm:h-[220px]`}>
+            <footer className={`${isTutorialMode ? 'h-[320px]' : 'h-[280px]'} relative flex-shrink-0 border-t border-white/10 bg-[#080c16]/95 shadow-[0_-20px_60px_rgba(0,0,0,0.8)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] backdrop-blur-3xl z-[60] max-sm:h-[220px] overflow-hidden`}>
               <div className="h-full overflow-y-auto custom-scrollbar">
                 <TutorPanel variant="docked" />
               </div>
@@ -120,11 +154,26 @@ export default function Home() {
           )}
         </div>
 
-        {/* Right AI Tutor (if active) */}
+        {/* Right AI Tutor (if active) - Improved layout */}
         {tutorLayout === 'right' && (
-          <aside className={`${isTutorialMode ? 'w-[450px]' : 'w-[400px]'} relative flex-shrink-0 border-l border-white/10 bg-[#080c16]/95 shadow-[-20px_0_60px_rgba(0,0,0,0.8)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] backdrop-blur-3xl z-[60] max-sm:w-full max-sm:border-l-0 max-sm:border-t`}>
-             <TutorPanel variant="docked" />
-          </aside>
+          <>
+            <div 
+              className="hidden lg:flex w-1.5 flex-col justify-center items-center cursor-col-resize hover:bg-amber-400/30 active:bg-amber-400/50 rounded-full transition-colors z-50 group relative"
+              onMouseDown={(e) => { e.preventDefault(); setIsTutorDragging(true) }}
+              title="Drag to resize tutor panel"
+            >
+              <div className="absolute w-8 h-12 rounded-full bg-slate-700 group-hover:bg-amber-400/80" />
+            </div>
+
+            <aside
+              style={{ width: tutorPanelWidth }}
+              className="relative flex-shrink-0 border-l border-white/10 bg-[#080c16]/95 shadow-[-20px_0_60px_rgba(0,0,0,0.8)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] backdrop-blur-3xl z-[60] max-sm:w-full max-sm:border-l-0 max-sm:border-t overflow-hidden"
+            >
+              <div className="h-full overflow-y-auto custom-scrollbar">
+                <TutorPanel variant="docked" />
+              </div>
+            </aside>
+          </>
         )}
         
       </div>

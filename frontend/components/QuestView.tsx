@@ -139,9 +139,9 @@ function getPhysicsStory(
         ? `⚙️ FACTORY (MOTOR) — ${label} RUNNING!\nP_mech = η × V × I\nCity industry is booming!\nElectrical energy → mechanical work`
         : `⚙️ FACTORY (MOTOR) — ${label} idle.\nNeeds energy flow to start production.\nτ = K_t × I — check your path!`
     case 'voltmeter':
-      return `📐 VOLTMETER — ${label}\nReading: ${voltage != null ? `${Number(voltage).toFixed(2)} V` : '—'}\n(Voltmeters measure potential difference in parallel.)`
+      return `📐 VOLTMETER — ${label}\nReading: ${voltageDrop != null ? `${Number(voltageDrop).toFixed(2)} V` : '—'}\n(Voltmeters measure potential difference in parallel.)`
     case 'ammeter':
-      return `📏 AMMETER — ${label}\nReading: ${circuitContext && circuitContext.current ? `${(circuitContext.current).toFixed(3)} A` : (voltage ? `${Number(voltage).toFixed(3)} A` : '—')}\n(Ammeters sit in series to measure current.)`
+      return `📏 AMMETER — ${label}\nReading: ${circuitContext && circuitContext.current ? `${(circuitContext.current).toFixed(3)} A` : (value ? `${Number(value).toFixed(3)} A` : '—')}\n(Ammeters sit in series to measure current.)`
     default:
       return `📍 JUNCTION — ${label}\nA crossroad in our city grid.`
   }
@@ -1388,6 +1388,10 @@ export default function QuestView() {
 
   // ── Rebuild on simulation change ────────────────────────────────────────────
   useEffect(() => {
+    // Update refs with latest values
+    circuitGraphRef.current = circuitGraph
+    simulationStateRef.current = simulationState
+
     const s = pixiStateRef.current
     if (!s) return
     setChatLog([])
