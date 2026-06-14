@@ -415,11 +415,19 @@ function BuilderInner() {
 
   // Sync store's canvasNodes/canvasEdges into local React Flow state
   useEffect(() => {
-    if (storeNodes.length > 0 || storeEdges.length > 0) {
-      setNodes(storeNodes)
-      setEdges(storeEdges)
-    }
-  }, [storeNodes, storeEdges, setNodes, setEdges])
+    // Only update local React Flow state when the store's arrays differ
+    const nodesDiffer = storeNodes.length !== nodes.length || storeNodes.some((sn, i) => {
+      const ln = nodes[i]
+      return !ln || sn.id !== ln.id || JSON.stringify(sn) !== JSON.stringify(ln)
+    })
+    const edgesDiffer = storeEdges.length !== edges.length || storeEdges.some((se, i) => {
+      const le = edges[i]
+      return !le || se.id !== le.id || JSON.stringify(se) !== JSON.stringify(le)
+    })
+
+    if (nodesDiffer) setNodes(storeNodes)
+    if (edgesDiffer) setEdges(storeEdges)
+  }, [storeNodes, storeEdges, setNodes, setEdges, nodes, edges])
 
   const prevGraphRef = useRef<string>('')
   useEffect(() => {
@@ -440,10 +448,16 @@ function BuilderInner() {
     if (key === prevGraphRef.current) return
     prevGraphRef.current = key
     setCircuitGraph(graph)
-    // Also sync back to store for consistency
-    setCanvasNodes(nodes)
-    setCanvasEdges(edges)
-  }, [nodes, edges, setCircuitGraph])
+
+    // Sync back to store only when data actually differs to avoid feedback loops
+    const nodesKey = JSON.stringify(nodes)
+    const edgesKey = JSON.stringify(edges)
+    const storeNodesKey = JSON.stringify(storeNodes)
+    const storeEdgesKey = JSON.stringify(storeEdges)
+
+    if (nodesKey !== storeNodesKey) setCanvasNodes(nodes)
+    if (edgesKey !== storeEdgesKey) setCanvasEdges(edges)
+  }, [nodes, edges, setCircuitGraph, storeNodes, storeEdges, setCanvasNodes, setCanvasEdges])
 
   useEffect(() => {
     if (!pendingLoad) return
