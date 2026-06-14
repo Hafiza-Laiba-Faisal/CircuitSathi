@@ -307,6 +307,10 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
         className="!w-3 !h-3 !bg-cyan-400 !border-2 !border-gray-900" />
       <Handle type="source" position={Position.Right} id="right"
         className="!w-3 !h-3 !bg-cyan-400 !border-2 !border-gray-900" />
+      <Handle type="target" position={Position.Top} id="top"
+        className="!w-3 !h-3 !bg-cyan-400 !border-2 !border-gray-900" />
+      <Handle type="source" position={Position.Bottom} id="bottom"
+        className="!w-3 !h-3 !bg-cyan-400 !border-2 !border-gray-900" />
 
       <div className="text-lg leading-none mb-0.5 select-none" style={{ color: cfg.color }}>
         {cfg.symbol}

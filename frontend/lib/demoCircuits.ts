@@ -8,6 +8,8 @@ export interface DemoCircuit {
   graph: CircuitGraph
 }
 
+
+
 // Fallback circuit loaded when Gemini Vision fails to parse an uploaded image
 export const FALLBACK_CIRCUIT: CircuitGraph = {
   components: [
@@ -18,13 +20,43 @@ export const FALLBACK_CIRCUIT: CircuitGraph = {
     { id: 'fb_r4', type: 'resistor', label: 'R4', value: 470, position: { x: 800, y: 120 } },
     { id: 'fb_gnd', type: 'ground', label: 'GND', position: { x: 1000, y: 120 } },
   ],
-  edges: [
-    { id: 'fbe1', sourceId: 'fb_bat', targetId: 'fb_r1' },
-    { id: 'fbe2', sourceId: 'fb_r1', targetId: 'fb_r2' },
-    { id: 'fbe3', sourceId: 'fb_r2', targetId: 'fb_r3' },
-    { id: 'fbe4', sourceId: 'fb_r3', targetId: 'fb_r4' },
-    { id: 'fbe5', sourceId: 'fb_r4', targetId: 'fb_gnd' },
-  ],
+ edges: [
+  {
+    id: 'fbe1',
+    sourceId: 'fb_bat',
+    targetId: 'fb_r1',
+    sourcePin: 'right',
+    targetPin: 'left',
+  },
+  {
+    id: 'fbe2',
+    sourceId: 'fb_r1',
+    targetId: 'fb_r2',
+    sourcePin: 'right',
+    targetPin: 'left',
+  },
+  {
+    id: 'fbe3',
+    sourceId: 'fb_r2',
+    targetId: 'fb_r3',
+    sourcePin: 'right',
+    targetPin: 'left',
+  },
+  {
+    id: 'fbe4',
+    sourceId: 'fb_r3',
+    targetId: 'fb_r4',
+    sourcePin: 'right',
+    targetPin: 'left',
+  },
+  {
+    id: 'fbe5',
+    sourceId: 'fb_r4',
+    targetId: 'fb_gnd',
+    sourcePin: 'right',
+    targetPin: 'left',
+  },
+],
 }
 
 export const DEMO_CIRCUITS: DemoCircuit[] = [
@@ -86,26 +118,79 @@ export const DEMO_CIRCUITS: DemoCircuit[] = [
     },
   },
   {
-    id: 'voltage_divider',
-    name: 'Voltage Divider',
-    description: 'Two resistors split voltage — Vout = Vin × R2/(R1+R2).',
-    category: 'intermediate',
-    graph: {
-      components: [
-        { id: 'bat1', type: 'battery', label: '12V Battery', value: 12, position: { x: 0, y: 0 } },
-        { id: 'r1', type: 'resistor', label: 'R1 1kΩ', value: 1000, position: { x: 200, y: 0 } },
-        { id: 'wire1', type: 'wire', label: 'Vout', position: { x: 400, y: 0 } },
-        { id: 'r2', type: 'resistor', label: 'R2 2.2kΩ', value: 2200, position: { x: 400, y: 160 } },
-        { id: 'gnd1', type: 'ground', label: 'GND', position: { x: 400, y: 300 } },
-      ],
-      edges: [
-        { id: 'e1', sourceId: 'bat1', targetId: 'r1', sourcePin: 'right', targetPin: 'left' },
-        { id: 'e2', sourceId: 'r1', targetId: 'wire1', sourcePin: 'right', targetPin: 'left' },
-        { id: 'e3', sourceId: 'wire1', targetId: 'r2', sourcePin: 'bottom', targetPin: 'top' },
-        { id: 'e4', sourceId: 'r2', targetId: 'gnd1', sourcePin: 'bottom', targetPin: 'top' },
-      ],
-    },
+  id: 'voltage_divider',
+  name: 'Voltage Divider',
+  description: 'Two resistors split voltage — Vout = Vin × R2/(R1+R2).',
+  category: 'intermediate',
+  graph: {
+    components: [
+      {
+        id: 'bat1',
+        type: 'battery',
+        label: '12V Battery',
+        value: 12,
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'r1',
+        type: 'resistor',
+        label: 'R1 1kΩ',
+        value: 1000,
+        position: { x: 200, y: 0 },
+      },
+      {
+        id: 'node1',
+        type: 'wire',
+        label: 'Vout',
+        value: 8.25,
+        position: { x: 400, y: 0 },
+      },
+      {
+        id: 'r2',
+        type: 'resistor',
+        label: 'R2 2.2kΩ',
+        value: 2200,
+        position: { x: 400, y: 160 },
+      },
+      {
+        id: 'gnd1',
+        type: 'ground',
+        label: 'GND',
+        position: { x: 400, y: 300 },
+      },
+    ],
+    edges: [
+      {
+        id: 'e1',
+        sourceId: 'bat1',
+        targetId: 'r1',
+        sourcePin: 'right',
+        targetPin: 'left',
+      },
+      {
+        id: 'e2',
+        sourceId: 'r1',
+        targetId: 'node1',
+        sourcePin: 'right',
+        targetPin: 'left',
+      },
+      {
+        id: 'e3',
+        sourceId: 'node1',
+        targetId: 'r2',
+        sourcePin: 'bottom',
+        targetPin: 'top',
+      },
+      {
+        id: 'e4',
+        sourceId: 'r2',
+        targetId: 'gnd1',
+        sourcePin: 'bottom',
+        targetPin: 'top',
+      },
+    ],
   },
+},
   {
     id: 'switch_led',
     name: 'Switch-Controlled LED',
@@ -127,23 +212,76 @@ export const DEMO_CIRCUITS: DemoCircuit[] = [
       ],
     },
   },
-  {
-    id: 'motor_circuit',
-    name: 'Motor Circuit',
-    description: 'Battery drives a DC motor through a switch — basic actuator circuit.',
-    category: 'basic',
-    graph: {
-      components: [
-        { id: 'bat1', type: 'battery', label: '9V Battery', value: 9, position: { x: 0, y: 120 } },
-        { id: 'sw1', type: 'switch', label: 'SW1', value: 1, position: { x: 200, y: 120 } },
-        { id: 'mot1', type: 'motor', label: 'Motor', position: { x: 400, y: 120 } },
-        { id: 'gnd1', type: 'ground', label: 'GND', position: { x: 600, y: 120 } },
-      ],
-      edges: [
-        { id: 'e1', sourceId: 'bat1', targetId: 'sw1', sourcePin: 'right', targetPin: 'left' },
-        { id: 'e2', sourceId: 'sw1', targetId: 'mot1', sourcePin: 'right', targetPin: 'left' },
-        { id: 'e3', sourceId: 'mot1', targetId: 'gnd1', sourcePin: 'right', targetPin: 'left' },
-      ],
-    },
+ {
+  id: 'motor_circuit',
+  name: 'Motor Circuit',
+  description: 'Battery drives a DC motor through a switch.',
+  category: 'basic',
+  graph: {
+    components: [
+      {
+        id: 'bat1',
+        type: 'battery',
+        label: '9V Battery',
+        value: 9,
+        position: { x: 0, y: 120 },
+      },
+      {
+        id: 'sw1',
+        type: 'switch',
+        label: 'SW1',
+        value: 1,
+        position: { x: 200, y: 120 },
+      },
+      {
+        id: 'mot1',
+        type: 'motor',
+        label: 'Motor',
+        position: { x: 400, y: 120 },
+      },
+      {
+        id: 'd1',
+        type: 'diode',
+        label: 'Flyback',
+        position: { x: 400, y: 40 },
+      },
+      {
+        id: 'gnd1',
+        type: 'ground',
+        label: 'GND',
+        position: { x: 600, y: 120 },
+      },
+    ],
+    edges: [
+      {
+        id: 'e1',
+        sourceId: 'bat1',
+        targetId: 'sw1',
+        sourcePin: 'right',
+        targetPin: 'left',
+      },
+      {
+        id: 'e2',
+        sourceId: 'sw1',
+        targetId: 'mot1',
+        sourcePin: 'right',
+        targetPin: 'left',
+      },
+      {
+        id: 'e3',
+        sourceId: 'mot1',
+        targetId: 'gnd1',
+        sourcePin: 'right',
+        targetPin: 'left',
+      },
+
+      // Flyback diode across motor
+      {
+        id: 'e4',
+        sourceId: 'd1',
+        targetId: 'mot1',
+      },
+    ],
   },
+},
 ]
