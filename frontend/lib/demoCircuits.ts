@@ -142,8 +142,14 @@ export const DEMO_CIRCUITS: DemoCircuit[] = [
         id: 'node1',
         type: 'wire',
         label: 'Vout',
-        value: 8.25,
         position: { x: 400, y: 0 },
+      },
+      {
+        id: 'vm1',
+        type: 'voltmeter',
+        label: 'VM1',
+        value: 8.25,
+        position: { x: 560, y: 80 },
       },
       {
         id: 'r2',
@@ -182,8 +188,22 @@ export const DEMO_CIRCUITS: DemoCircuit[] = [
         targetPin: 'top',
       },
       {
+        id: 'e3b',
+        sourceId: 'node1',
+        targetId: 'vm1',
+        sourcePin: 'right',
+        targetPin: 'left',
+      },
+      {
         id: 'e4',
         sourceId: 'r2',
+        targetId: 'gnd1',
+        sourcePin: 'bottom',
+        targetPin: 'top',
+      },
+      {
+        id: 'e5',
+        sourceId: 'vm1',
         targetId: 'gnd1',
         sourcePin: 'bottom',
         targetPin: 'top',

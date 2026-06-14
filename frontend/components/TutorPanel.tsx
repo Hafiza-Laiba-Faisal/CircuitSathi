@@ -18,6 +18,7 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
     setActiveStepIdx,
     manualText,
     setManualText,
+    setTutorLayout,
   } = useCircuitStore()
 
   const [loading, setLoading] = useState(false)
@@ -49,6 +50,9 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       const steps = response.data.steps
+      // Replace any currently loaded demo with the generated AI tutorial content.
+      useCircuitStore.getState().clearCircuit()
+      setTutorLayout('bottom')
       setTutorialSteps(steps)
       setIsTutorialMode(true)
       setActiveStepIdx(0)

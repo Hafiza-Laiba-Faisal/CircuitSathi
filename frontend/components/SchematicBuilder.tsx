@@ -271,6 +271,8 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
   const currentFlow = cs?.currentFlow ?? 0
   const fault = cs?.fault
   const cfg = CONFIGS[data.componentType as CType] ?? CONFIGS.wire
+  const measuredVoltage = cs?.voltage ?? (data.value as number | undefined)
+  const measuredCurrent = cs?.current ?? undefined
 
   const borderColor = fault
     ? '#ef4444'
@@ -292,6 +294,9 @@ function CircuitNodeRaw({ id, data, selected }: NodeProps) {
     data.componentType === 'battery' ? (data.value != null ? `${Number(data.value).toFixed(1)}V` : '') :
     data.componentType === 'resistor' ? (data.value != null ? `${Number(data.value).toFixed(1)}\u03A9` : '') :
     data.componentType === 'capacitor' ? `${data.value ?? ''}\u00B5F` :
+    data.componentType === 'voltmeter' ? (measuredVoltage != null ? `${Number(measuredVoltage).toFixed(2)}V` : '') :
+    data.componentType === 'ammeter' ? (measuredCurrent != null ? `${Number(measuredCurrent).toFixed(3)}A` : '') :
+    data.componentType === 'multimeter' ? (measuredVoltage != null ? `${Number(measuredVoltage).toFixed(2)}V` : data.value != null ? `${Number(data.value).toFixed(2)}` : '') :
     data.componentType === 'switch' ? (data.value === 1 ? 'ON' : 'OFF') :
     null
 
