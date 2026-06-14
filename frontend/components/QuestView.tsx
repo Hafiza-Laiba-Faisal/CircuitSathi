@@ -363,17 +363,17 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
 
       // Push path only if it looks like a circuit
       const path = localPath
-      if (path.length > 1) paths.push(path)
+      if (path.length > 1) paths.push(path);
 
       // Attach computed props to groupLandmarks for later use when creating scene landmarks
-      groupLandmarks.forEach(g => {
+      groupLandmarks.forEach((g) => {
         const p = compProps.get(g.id)
         if (p && typeof p === 'object') {
-          (g as any).voltage = (p as any).voltage
-          (g as any).voltageDrop = (p as any).voltageDrop
-          (g as any).computedCurrent = (p as any).current
+          ;(g as any).voltage = (p as any).voltage
+          ;(g as any).voltageDrop = (p as any).voltageDrop
+          ;(g as any).computedCurrent = (p as any).current
         }
-      })
+      });
     }
   })
 
