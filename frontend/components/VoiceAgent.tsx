@@ -1,25 +1,26 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useConversation } from '@elevenlabs/react'
 import { useCircuitStore } from '../store/circuitStore'
 
-const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'agent_8401kkrgjbe0ezsrrdefnawm3ymc'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export default function VoiceAgent() {
   const [showSettings, setShowSettings] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const [agentReply, setAgentReply] = useState('')
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentAudioUrlRef = useRef<string | null>(null)
+  const recognitionRef = useRef<any>(null)
 
   const { circuitGraph, simulationState, currentNarration, voiceEnabled, setVoiceEnabled } = useCircuitStore()
 
   // Initialize audio and restore voice preference from localStorage
   useEffect(() => {
-    const savedAutoNarrate = localStorage.getItem('elevenlabs_auto_narrate')
-    // Default to global voiceEnabled if not set
+    const savedAutoNarrate = localStorage.getItem('cambai_auto_narrate')
     if (savedAutoNarrate !== null) setVoiceEnabled(savedAutoNarrate === 'true')
     audioRef.current = new Audio()
     audioRef.current.onended = () => {
@@ -31,11 +32,11 @@ export default function VoiceAgent() {
     }
   }, [])
 
-  // Build circuit context string
+  // ─── Build context for AI understanding ────────────────────────────────────
   const buildContext = useCallback((): string => {
     const comps = circuitGraph.components
     if (comps.length === 0) {
-      return 'The circuit is currently empty. The user is about to start building an electronic circuit simulation called "Ground Wire". You are an educational physics AI guide helping them understand electronics.'
+      return 'The circuit is currently empty. The user is about to start building an electronic circuit simulation called "Circuit Sathi". You are an educational physics AI guide helping them understand electronics.'
     }
 
     const compList = comps.map(c => {
@@ -61,77 +62,12 @@ export default function VoiceAgent() {
       ? `\nCalculated series current: I = V/R = ${battery?.value}V / ${rTotal}Ω = ${current}A (${(parseFloat(current) * 1000).toFixed(1)}mA)`
       : ''
 
-    return `You are an educational electronics physics guide in "Ground Wire" simulation game. The user is exploring a circuit containing: ${compList}. ${validStr} Circuit status: ${faultList}.${physicsLine}
+    return `You are an educational electronics physics guide in "Circuit Sathi" simulation. The user is exploring a circuit containing: ${compList}. ${validStr} Circuit status: ${faultList}.${physicsLine}
 
 Help the user understand the physics concepts behind their circuit. Explain Ohm's Law (V=IR), Kirchhoff's laws, power dissipation (P=IV=I²R), component behavior, and anything else they ask about. Be enthusiastic, educational, and relate concepts to the visual circuit they're building. Keep responses concise but accurate.`
   }, [circuitGraph, simulationState])
 
-  // ─── ElevenLabs Conversational AI (WebRTC) ───────────────────────────────────
-  // Track whether we need to send the initial context on first connect
-  const sendInitialContextRef = useRef(false)
-  const buildContextRef = useRef(buildContext)
-  useEffect(() => { buildContextRef.current = buildContext }, [buildContext])
-
-  const conversation = useConversation({
-    onConnect: () => console.log('[GroundWire] Agent connected'),
-    onDisconnect: () => console.log('[GroundWire] Agent disconnected'),
-    onError: (err) => console.error('[GroundWire] Agent error:', err),
-    onModeChange: (mode) => console.log('[GroundWire] Mode:', mode),
-  })
-
-  // Send initial circuit context once the connection is established
-  useEffect(() => {
-    if (conversation.status === 'connected' && sendInitialContextRef.current) {
-      sendInitialContextRef.current = false
-      const ctx = buildContextRef.current()
-      prevContextRef.current = ctx
-      setTimeout(() => {
-        try { conversation.sendContextualUpdate(ctx) } catch (_) {}
-      }, 400)
-    }
-  }, [conversation.status]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const isAgentActive = conversation.status === 'connected' || conversation.status === 'connecting'
-
-  const startAgent = useCallback(async () => {
-    try {
-      await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      alert('Microphone access is required to use the voice agent.\nPlease allow microphone access and try again.')
-      return
-    }
-
-    try {
-      sendInitialContextRef.current = true
-      await conversation.startSession({
-        agentId: AGENT_ID,
-        connectionType: 'webrtc',
-      })
-    } catch (err) {
-      console.error('[GroundWire] Failed to start agent:', err)
-      sendInitialContextRef.current = false
-    }
-  }, [conversation])
-
-  const stopAgent = useCallback(async () => {
-    try { await conversation.endSession() } catch (_) {}
-  }, [conversation])
-
-  // Send circuit context update whenever the circuit changes while agent is active
-  const prevContextRef = useRef<string>('')
-  useEffect(() => {
-    if (conversation.status !== 'connected') return
-    const ctx = buildContext()
-    if (ctx === prevContextRef.current) return
-    prevContextRef.current = ctx
-    try {
-      conversation.sendContextualUpdate(
-        `Circuit update: ${circuitGraph.components.length} components. ${ctx}`
-      )
-    } catch (_) {}
-  }, [circuitGraph, simulationState, conversation, buildContext])
-
-  // ─── TTS ─────────────────────────────────────────────────────────────────────
+  // ─── Camb.AI TTS via Backend ──────────────────────────────────────────────
   const speak = useCallback(async (text: string) => {
     if (isSpeaking) return
     const cleanText = text
@@ -148,14 +84,12 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
     try {
       const res = await fetch(`${API_BASE}/api/narrate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText }),
       })
 
       if (!res.ok) {
-        console.error('TTS API error:', res.status, await res.text())
+        console.error('Camb.AI TTS error:', res.status, await res.text())
         setIsSpeaking(false)
         return
       }
@@ -187,30 +121,104 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
     }
   }, [])
 
+  // ─── Voice Input via Web Speech API + AI Response via Tutor + Camb.AI TTS ─
+  const startListening = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser. Please use Chrome.')
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      setTranscript('')
+      setAgentReply('')
+    }
+
+    recognition.onresult = async (event: any) => {
+      const speechText = event.results[0][0].transcript
+      setTranscript(speechText)
+      setIsListening(false)
+
+      // Send to AI tutor for a response, with circuit context
+      try {
+        const context = buildContext()
+        const fullPrompt = `${context}\n\nStudent's question (spoken): "${speechText}"\n\nRespond in 2-3 sentences, educational and friendly.`
+
+        const res = await fetch(`${API_BASE}/api/tutor/parse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manualText: fullPrompt }),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          const reply = data.summary || data.steps?.[0]?.explanation || 'I understood your question. Let me help you with that circuit!'
+          setAgentReply(reply)
+          // Speak the reply via Camb.AI TTS
+          speak(reply)
+        } else {
+          const fallback = 'Sorry, I could not process that. Please try again.'
+          setAgentReply(fallback)
+          speak(fallback)
+        }
+      } catch (err) {
+        console.error('Voice agent error:', err)
+        const fallback = 'There was an error processing your question.'
+        setAgentReply(fallback)
+      }
+    }
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error)
+      setIsListening(false)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+  }, [buildContext, speak])
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+    }
+    setIsListening(false)
+  }, [])
+
   // Auto-narrate: speak every new story step automatically
   const lastNarrationRef = useRef<string | null>(null)
   useEffect(() => {
     if (!voiceEnabled || !currentNarration) return
     if (currentNarration === lastNarrationRef.current) return
     lastNarrationRef.current = currentNarration
-    // Stop any currently playing audio so the new step starts immediately
     if (isSpeaking) stopSpeak()
     speak(currentNarration)
   }, [currentNarration, voiceEnabled, speak, isSpeaking, stopSpeak])
 
-  // ─── Agent status colors ──────────────────────────────────────────────────────
+  // ─── Status ──────────────────────────────────────────────────────────────────
+  const agentStatus = isListening ? 'listening' : isSpeaking ? 'speaking' : 'idle'
+
   const STATUS_COLOR: Record<string, string> = {
-    disconnected: '#64748b',
-    connecting: '#f59e0b',
-    connected: conversation.isSpeaking ? '#3b82f6' : '#22c55e',
+    idle: '#64748b',
+    listening: '#22c55e',
+    speaking: '#3b82f6',
   }
   const STATUS_LABEL: Record<string, string> = {
-    disconnected: 'IDLE',
-    connecting: 'CONNECTING...',
-    connected: conversation.isSpeaking ? 'SPEAKING' : 'LISTENING',
+    idle: 'IDLE',
+    listening: 'LISTENING...',
+    speaking: 'SPEAKING',
   }
-  const statusColor = STATUS_COLOR[conversation.status] ?? '#64748b'
-  const statusLabel = STATUS_LABEL[conversation.status] ?? 'IDLE'
+  const statusColor = STATUS_COLOR[agentStatus]
+  const statusLabel = STATUS_LABEL[agentStatus]
 
   return (
     <div style={{
@@ -245,7 +253,7 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
             <button
               onClick={() => {
                 const next = !voiceEnabled
-                localStorage.setItem('elevenlabs_auto_narrate', String(next))
+                localStorage.setItem('cambai_auto_narrate', String(next))
                 setVoiceEnabled(next)
               }}
               style={{
@@ -264,17 +272,36 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
             background: '#0a0e1a', border: '1px solid #1e293b',
             borderRadius: 4, padding: '6px 8px',
           }}>
-            <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569', marginBottom: 4 }}>VOICE AGENT</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569', marginBottom: 4 }}>VOICE ENGINE</div>
             <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#64748b', lineHeight: 1.6 }}>
-              CambAI narration via backend<br />
+              Camb.AI TTS (mars-8.1-flash-beta)<br />
               {circuitGraph.components.length} components &bull; {simulationState?.faults.length ?? 0} fault(s)
             </div>
           </div>
+
+          {/* Transcript display */}
+          {(transcript || agentReply) && (
+            <div style={{
+              background: '#0a0e1a', border: '1px solid #1e293b',
+              borderRadius: 4, padding: '6px 8px', maxHeight: 120, overflowY: 'auto',
+            }}>
+              {transcript && (
+                <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#94a3b8', marginBottom: 4 }}>
+                  🎤 You: {transcript}
+                </div>
+              )}
+              {agentReply && (
+                <div style={{ fontFamily: 'monospace', fontSize: 9, color: '#60a5fa', marginTop: 4 }}>
+                  🤖 Sathi: {agentReply.slice(0, 200)}{agentReply.length > 200 ? '...' : ''}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* Agent Status Indicator */}
-      {isAgentActive && (
+      {agentStatus !== 'idle' && (
         <div style={{
           background: 'rgba(15, 23, 42, 0.92)',
           border: `2px solid ${statusColor}`,
@@ -290,6 +317,7 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
             background: statusColor,
             display: 'inline-block',
             boxShadow: `0 0 8px ${statusColor}`,
+            animation: isListening ? 'pulse 1s infinite' : 'none',
           }} />
           <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 6, color: '#e2e8f0' }}>
             {statusLabel}
@@ -359,25 +387,25 @@ Help the user understand the physics concepts behind their circuit. Explain Ohm'
           </button>
         )}
 
-        {/* Voice Agent toggle */}
+        {/* Voice Agent toggle — uses Web Speech API + Camb.AI TTS */}
         <button
-          onClick={isAgentActive ? stopAgent : startAgent}
-          title={isAgentActive ? 'End voice session' : 'Start Ground Wire voice agent'}
+          onClick={isListening ? stopListening : startListening}
+          title={isListening ? 'Stop listening' : 'Ask Sathi (voice)'}
           style={{
-            background: isAgentActive ? 'rgba(139,92,246,0.15)' : 'rgba(15,23,42,0.88)',
-            border: `2px solid ${isAgentActive ? '#8b5cf6' : '#334155'}`,
+            background: isListening ? 'rgba(34,197,94,0.15)' : 'rgba(15,23,42,0.88)',
+            border: `2px solid ${isListening ? '#22c55e' : '#334155'}`,
             borderRadius: 6,
-            color: isAgentActive ? '#8b5cf6' : '#94a3b8',
+            color: isListening ? '#22c55e' : '#94a3b8',
             fontSize: 14,
             padding: '6px 10px',
             cursor: 'pointer',
-            boxShadow: isAgentActive ? '0 0 16px rgba(139,92,246,0.4)' : 'none',
+            boxShadow: isListening ? '0 0 16px rgba(34,197,94,0.4)' : 'none',
             transition: 'all 0.15s',
           }}
-          onMouseEnter={e => { if (!isAgentActive) e.currentTarget.style.borderColor = '#8b5cf6' }}
-          onMouseLeave={e => { if (!isAgentActive) e.currentTarget.style.borderColor = '#334155' }}
+          onMouseEnter={e => { if (!isListening) e.currentTarget.style.borderColor = '#22c55e' }}
+          onMouseLeave={e => { if (!isListening) e.currentTarget.style.borderColor = '#334155' }}
         >
-          {isAgentActive ? '🛑' : '🎙️'}
+          {isListening ? '🛑' : '🎙️'}
         </button>
       </div>
 

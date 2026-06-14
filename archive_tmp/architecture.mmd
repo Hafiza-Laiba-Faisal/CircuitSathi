@@ -1,0 +1,56 @@
+graph TD
+    classDef frontend fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+    classDef backend fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef ai fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+    classDef db fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+
+    subgraph Client ["🖥️ Frontend — Next.js 14 + TypeScript"]
+        UI([React UI & Zustand Store]):::frontend
+        Schematic([React Flow Schematic Builder]):::frontend
+        GameView([PixiJS Quest World Renderer]):::frontend
+        SimEngine([Client-Side Simulation Engine]):::frontend
+        Parsers([Multi-Format Parsers<br/>KiCad · SPICE · CDDX]):::frontend
+        VoiceUI([Voice Agent<br/>Web Speech API + Camb.AI TTS]):::frontend
+
+        UI <--> Schematic
+        Schematic -->|"Circuit Graph"| GameView
+        Schematic -->|"Component Data"| SimEngine
+        Parsers -->|"Parsed Graph"| Schematic
+    end
+
+    subgraph Server ["⚙️ Backend — Express.js + TypeScript"]
+        API([REST API Gateway]):::backend
+        MNA([MNA Physics Solver<br/>Gaussian Elimination]):::backend
+        TutorRoute([Socratic AI Tutor<br/>Agentic Tool-Calling Loop]):::ai
+        NarrateRoute([Camb.AI TTS Route]):::backend
+        UploadRoute([File Upload & Vision Parser]):::backend
+        ProjectsRoute([Project CRUD API]):::backend
+
+        API <--> MNA
+        API <--> TutorRoute
+        API <--> NarrateRoute
+        API <--> UploadRoute
+        API <--> ProjectsRoute
+    end
+
+    subgraph LLMs ["🧠 AI Provider Cascade"]
+        Mistral([Mistral Large — Primary]):::ai
+        Cohere([Cohere Command-R+ — Fallback]):::ai
+        OpenRouter([OpenRouter Auto — Final Fallback]):::ai
+        Gemini([Google Gemini Flash — Vision Only]):::ai
+
+        Mistral -.->|"fallback"| Cohere
+        Cohere -.->|"fallback"| OpenRouter
+    end
+
+    subgraph Cloud ["☁️ Cloud Services"]
+        CambAI([Camb.AI TTS Engine<br/>mars-8.1-flash-beta]):::ai
+        MongoDB[(MongoDB Atlas)]:::db
+    end
+
+    UI -->|"HTTP Requests"| API
+    VoiceUI -->|"Speech-to-Text → Tutor API → TTS"| API
+    TutorRoute <-->|"Chat Completions"| Mistral
+    UploadRoute -->|"Vision API"| Gemini
+    NarrateRoute -->|"Text-to-Speech"| CambAI
+    ProjectsRoute --> MongoDB

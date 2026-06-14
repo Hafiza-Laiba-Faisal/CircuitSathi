@@ -9,8 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@11labs/client": "^0.2.0",
-    "@elevenlabs/react": "^0.14.2",
     "@types/three": "^0.183.1",
     "jszip": "^3.10.1",
     "next": "14.2.35",

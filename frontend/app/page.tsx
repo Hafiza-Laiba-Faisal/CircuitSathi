@@ -16,6 +16,14 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false)
   const [isTutorDragging, setIsTutorDragging] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [isCompiling, setIsCompiling] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsCompiling(false)
+    }, 5000) // Exactly 5 seconds
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     const seen = window.localStorage.getItem('circuitsathi_seen_onboarding') === 'true'
@@ -95,7 +103,7 @@ export default function Home() {
             {/* Schematic Editor */}
             <section 
               style={{ flexBasis: `var(--desk-w)` } as any}
-              className="lg:[--desk-w:calc(var(--pct)*1%)] [--pct:50] flex h-[42vh] w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-[0_0_50px_rgba(0,0,0,0.3)] transition-all duration-500 ease-in-out lg:h-auto lg:w-auto"
+              className="lg:[--desk-w:calc(var(--pct)*1%)] flex h-[42vh] w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-[0_0_50px_rgba(0,0,0,0.3)] transition-all duration-500 ease-in-out lg:h-auto lg:w-auto"
             >
               <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -123,7 +131,7 @@ export default function Home() {
             {/* Simulation View */}
             <section 
               style={{ flexBasis: `var(--desk-w)` } as any}
-              className="lg:[--desk-w:calc((100-var(--pct))*1%-12px)] [--pct:50] flex h-[42vh] w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-[0_0_50px_rgba(0,0,0,0.3)] transition-all duration-500 ease-in-out lg:h-auto lg:w-auto"
+              className="lg:[--desk-w:calc((100-var(--pct))*1%-12px)] flex h-[42vh] w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-[0_0_50px_rgba(0,0,0,0.3)] transition-all duration-500 ease-in-out lg:h-auto lg:w-auto"
             >
               <div className="px-5 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -178,7 +186,59 @@ export default function Home() {
         
       </div>
 
-      {showOnboarding && (
+      {isCompiling && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0b1426] overflow-hidden">
+          {/* Scanline Effect Overlay */}
+          <div className="scanline-overlay" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.5)] opacity-50 animate-[scanline_3s_linear_infinite]" />
+
+          <div className="relative z-10 flex flex-col items-center">
+            {/* EXTRA LARGE LOGO IN WHITE ROUNDED SQUARE BLOCK */}
+            <div className="relative mb-16 flex items-center justify-center animate-iris-in">
+              <div className="animate-float p-8 sm:p-12 bg-white rounded-[40px] sm:rounded-[80px] shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+                <img 
+                  src="/logo.png" 
+                  alt="Circuit Sathi Logo" 
+                  className="relative z-20 w-48 h-48 sm:w-[380px] sm:h-[380px] object-contain" 
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center animate-in slide-in-from-bottom-8 duration-1000 delay-500">
+              <div className="flex gap-2 mb-8">
+                {[0, 1, 2, 3, 4, 5].map(i => (
+                  <div 
+                    key={i}
+                    className="h-1 w-10 bg-white/20 rounded-full overflow-hidden relative"
+                  >
+                    <div 
+                      className="absolute inset-0 bg-white shadow-[0_0_10px_#fff]"
+                      style={{ animation: `pulse 1.5s infinite ${i * 0.1}s` }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="font-['VT323'] text-3xl text-white/80 tracking-[0.6em] uppercase flex items-center gap-4">
+                <span className="w-8 h-px bg-white/20" />
+                Initializing Circuit Ecosystem
+                <span className="w-8 h-px bg-white/20" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="absolute bottom-12 right-12 font-['VT323'] text-cyan-500/40 text-sm tracking-[0.3em] flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+            V2.0.0-PRO // ENCRYPTED_BOOT_SEQUENCE
+          </div>
+          
+          <div className="absolute bottom-12 left-12 font-['VT323'] text-slate-700 text-[10px] tracking-widest uppercase">
+            &copy; 2026 Circuit Sathi Systems // All Rights Reserved
+          </div>
+        </div>
+      )}
+
+      {showOnboarding && !isCompiling && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-md">
           <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/10 bg-[#08101d] shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
             <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">

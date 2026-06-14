@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useCircuitStore } from '../store/circuitStore'
 import axios from 'axios'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
 interface TutorPanelProps {
   variant?: 'floating' | 'docked'
 }
@@ -50,7 +52,7 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
     }
 
     try {
-      const response = await axios.post<{ steps: any[] }>('http://localhost:3001/api/tutor/parse', formData, {
+      const response = await axios.post<{ steps: any[] }>(`${API_BASE}/api/tutor/parse`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       const steps = response.data.steps
@@ -101,7 +103,7 @@ export default function TutorPanel({ variant = 'floating' }: TutorPanelProps) {
     setIsSpeaking(true)
 
     try {
-      const res = await fetch('http://localhost:3001/api/narrate', {
+      const res = await fetch(`${API_BASE}/api/narrate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText }),

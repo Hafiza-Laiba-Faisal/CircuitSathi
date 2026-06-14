@@ -1,0 +1,14 @@
+Upar tab par right click karo aur dekho:
+
+Open to the Side
+Reveal in Explorer
+
+options aati hain?
+
+Ya tab ke naam ke sath kuch aisa likha hai:
+
+Git:
+Diff:
+Timeline:
+Peek:
+Search Editor:
