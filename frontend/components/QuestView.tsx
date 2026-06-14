@@ -478,7 +478,9 @@ function drawLandmark(PIXI: any, lm: LandmarkData): any {
     halo.beginFill(col.glow, 0.14)
     halo.drawCircle(0, 0, 52)
     halo.endFill()
-    halo.blendMode = PIXI.BLEND_MODES.ADD
+    // Some bundlers/users may load pixi.js with a different module shape;
+    // guard access to BLEND_MODES and fall back to numeric ADD (1).
+    halo.blendMode = (PIXI.BLEND_MODES && PIXI.BLEND_MODES.ADD) ?? 1
     c.addChild(halo)
   }
 
