@@ -138,6 +138,10 @@ function getPhysicsStory(
       return powered
         ? `⚙️ FACTORY (MOTOR) — ${label} RUNNING!\nP_mech = η × V × I\nCity industry is booming!\nElectrical energy → mechanical work`
         : `⚙️ FACTORY (MOTOR) — ${label} idle.\nNeeds energy flow to start production.\nτ = K_t × I — check your path!`
+    case 'voltmeter':
+      return `📐 VOLTMETER — ${label}\nReading: ${voltage != null ? `${Number(voltage).toFixed(2)} V` : '—'}\n(Voltmeters measure potential difference in parallel.)`
+    case 'ammeter':
+      return `📏 AMMETER — ${label}\nReading: ${circuitContext && circuitContext.current ? `${(circuitContext.current).toFixed(3)} A` : (voltage ? `${Number(voltage).toFixed(3)} A` : '—')}\n(Ammeters sit in series to measure current.)`
     default:
       return `📍 JUNCTION — ${label}\nA crossroad in our city grid.`
   }
@@ -277,6 +281,7 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
     
     // Only spawn a path if it's a potential circuit
     if (hasBattery || hasGround || groupComps.length > 3) {
+      // Build lightweight landmarks for path construction and simple electrical analysis
       const groupLandmarks = groupComps.map(c => {
         const x = worldOffsetX + (c.position.x - minX) * scale
         const y = worldOffsetY + (c.position.y - minY) * scale
@@ -284,11 +289,91 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
         return { 
           id: c.id, x, y, type: c.type, powered: cs?.powered ?? false,
           value: c.value, label: c.label || c.type, 
-          currentFlow: cs?.currentFlow ?? 0, fault: null 
+          currentFlow: cs?.currentFlow ?? 0, fault: cs?.fault ?? null 
         }
       })
-      const path = buildHeroPath(groupLandmarks as any, groupEdges as any)
+
+      // Determine an approximate electrical solution if the sim doesn't provide one
+      const compProps = new Map<string, { voltage?: number; current?: number; voltageDrop?: number }>()
+      // Simple single-loop approximation: pick battery value
+      const vBat = sim?.vBat ?? (groupComps.find(c => c.type === 'battery')?.value ?? 9)
+
+      // Use buildHeroPath ordering to walk the loop and compute cumulative drops
+      const localPath = buildHeroPath(groupLandmarks as any, groupEdges as any)
+      const orderedIds: string[] = []
+      for (const p of localPath) if (p.landmarkId && !orderedIds.includes(p.landmarkId)) orderedIds.push(p.landmarkId)
+      // If no ordered ids, fallback to group list
+      const orderedLms = orderedIds.length ? orderedIds.map(id => groupLandmarks.find(g => g.id === id)!).filter(Boolean) : groupLandmarks
+
+      // Helper to estimate resistance of a component
+      const estimateR = (lm: any): number | null => {
+        if (lm.type === 'resistor') return lm.value ?? 100
+        if (lm.type === 'motor') return lm.value ?? 10
+        if (lm.type === 'led') return lm.value ?? 50
+        if (lm.type === 'potentiometer') return lm.value ?? 1000
+        if (lm.type === 'inductor') return lm.value ?? 10
+        if (lm.type === 'switch') return (lm.value === 1 ? 0 : Infinity)
+        // Measurement devices don't participate in series resistance
+        if (lm.type === 'voltmeter' || lm.type === 'ammeter' || lm.type === 'multimeter' || lm.type === 'oscilloscope' || lm.type === 'probe') return null
+        // wires/grounds/battery negligible
+        return 0
+      }
+
+      // Sum series resistances (skip null/measurement and Infinity handled)
+      let rTotal = 0
+      let hasOpen = false
+      for (const lm of orderedLms) {
+        const r = estimateR(lm)
+        if (r === null) continue
+        if (!isFinite(r)) { hasOpen = true; break }
+        rTotal += r
+      }
+      const I = (!hasOpen && rTotal > 0) ? (vBat / rTotal) : 0
+
+      // Assign voltages and drops along ordered landmarks
+      let cumV = vBat
+      for (const lm of orderedLms) {
+        const r = estimateR(lm)
+        if (r === null) {
+          // Measurement device: voltmeter reads node voltage, ammeter reads current
+          if (lm.type === 'voltmeter') compProps.set(lm.id, { voltage: cumV })
+          if (lm.type === 'ammeter') compProps.set(lm.id, { current: I })
+          continue
+        }
+        if (!isFinite(r)) {
+          // Open switch: no current
+          compProps.set(lm.id, { voltage: cumV, current: 0, voltageDrop: 0 })
+          continue
+        }
+        const drop = I * r
+        compProps.set(lm.id, { voltage: cumV, current: I, voltageDrop: drop })
+        cumV = Math.max(0, cumV - drop)
+      }
+
+      // Use simulation data when available to override estimates
+      for (const s of sim?.componentStates ?? []) {
+        if (compProps.has(s.componentId)) {
+          const p = compProps.get(s.componentId) || {}
+          if (s.voltage !== undefined) p.voltage = s.voltage
+          if (s.current !== undefined) p.current = s.current
+          if (s.resistance !== undefined && s.resistance !== 0) p.voltageDrop = (s.current ?? 0) * s.resistance
+          compProps.set(s.componentId, p)
+        }
+      }
+
+      // Push path only if it looks like a circuit
+      const path = localPath
       if (path.length > 1) paths.push(path)
+
+      // Attach computed props to groupLandmarks for later use when creating scene landmarks
+      groupLandmarks.forEach(g => {
+        const p = compProps.get(g.id)
+        if (p) {
+          (g as any).voltage = p.voltage
+          (g as any).voltageDrop = p.voltageDrop
+          (g as any).computedCurrent = p.current
+        }
+      })
     }
   })
 
@@ -308,8 +393,9 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
       id: comp.id, type: comp.type, label: comp.label ?? comp.type,
       value: comp.value, x, y,
       powered: cs?.powered ?? false,
-      currentFlow: cs?.currentFlow ?? 0,
-      fault: null,
+      currentFlow: cs?.currentFlow ?? (cs?.current ? Math.min(1, Math.abs(cs.current)) : ((comp as any).computedCurrent ?? 0)),
+      fault: cs?.fault ?? (comp as any).fault ?? null,
+      voltageDrop: (cs?.voltage !== undefined && cs?.voltage !== null) ? cs.voltage : (comp as any).voltageDrop
     })
   }
 
