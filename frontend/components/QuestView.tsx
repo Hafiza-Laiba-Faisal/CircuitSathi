@@ -368,10 +368,10 @@ function deriveScene(graph: CircuitGraph, sim: SimulationState | null): SceneDat
       // Attach computed props to groupLandmarks for later use when creating scene landmarks
       groupLandmarks.forEach(g => {
         const p = compProps.get(g.id)
-        if (p) {
-          (g as any).voltage = p.voltage
-          (g as any).voltageDrop = p.voltageDrop
-          (g as any).computedCurrent = p.current
+        if (p && typeof p === 'object') {
+          (g as any).voltage = (p as any).voltage
+          (g as any).voltageDrop = (p as any).voltageDrop
+          (g as any).computedCurrent = (p as any).current
         }
       })
     }
