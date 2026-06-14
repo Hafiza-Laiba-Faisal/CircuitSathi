@@ -99,10 +99,12 @@ const SIM_TYPE_MAP: Record<string, CType> = {
   xor_gate: 'xor_gate', clock: 'clock',
   ac_source: 'ac_source', transformer: 'transformer',
 }
-const VALID_TYPES: CType[] = Object.values(SIM_TYPE_MAP).filter((v, i, a) => a.indexOf(v) === i)
+// Allow any type declared in CONFIGS as a valid simulation type.
+const VALID_TYPES: CType[] = Object.keys(CONFIGS) as unknown as CType[]
 function toSimType(raw: string | undefined): CType {
-  const t = SIM_TYPE_MAP[raw ?? ''] ?? raw
-  return (VALID_TYPES.includes(t as CType) ? t : 'wire') as CType
+  const mapped = SIM_TYPE_MAP[raw ?? ''] ?? raw
+  const t = (mapped as CType)
+  return (VALID_TYPES.includes(t) ? t : 'wire') as CType
 }
 
 /* ------------------------------------------------------------------ */
