@@ -66,11 +66,11 @@ export default function TopNav() {
   }
 
   return (
-    <nav className="relative flex flex-col gap-4 px-4 py-3 border-b border-white/10 bg-black/40 backdrop-blur-md z-50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <nav className="relative flex flex-col gap-4 px-4 py-3 border-b border-white/5 bg-black/40 backdrop-blur-md z-50 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       {/* Brand */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-          <span className="text-2xl">⚡</span>
+      <div className="flex items-center gap-4">
+        <div className="w-20 h-20 rounded-xl bg-white flex items-center justify-center shadow-[0_0_10px_rgba(255,255,255,0.25)] overflow-hidden p-0.5 transition-transform hover:scale-105 duration-300">
+          <img src="/logo.png" alt="Circuit Sathi Logo" className="w-full h-full object-contain rounded-[12px]" />
         </div>
         <div>
           <h1 className="font-bold text-xl tracking-tight text-white flex items-center gap-2">
@@ -89,11 +89,10 @@ export default function TopNav() {
             <button
               key={layout}
               onClick={() => setTutorLayout(layout as any)}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
-                tutorLayout === layout 
-                ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)]' 
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${tutorLayout === layout
+                  ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.2)]'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
             >
               {layout}
             </button>
@@ -107,11 +106,10 @@ export default function TopNav() {
               <button
                 key={w}
                 onClick={() => setTutorPanelWidth(w)}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
-                  tutorPanelWidth === w
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all ${tutorPanelWidth === w
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
+                  }`}
               >
                 {w}px
               </button>
@@ -126,11 +124,10 @@ export default function TopNav() {
             <button
               key={pct}
               onClick={() => setSchematicWidthPct(pct)}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all ${
-                schematicWidthPct === pct 
-                ? 'bg-slate-700 text-white' 
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all ${schematicWidthPct === pct
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
             >
               {pct}%
             </button>
@@ -149,7 +146,7 @@ export default function TopNav() {
         <button
           onClick={handleLoadToggle}
           disabled={loadingProjects}
-          className="px-5 py-2 text-sm font-semibold rounded-lg bg-slate-800 border border-white/10 hover:border-white/20 transition-all"
+          className="px-5 py-2 text-sm font-semibold rounded-lg bg-slate-800 border border-white/5 hover:border-white/10 transition-all"
         >
           {loadingProjects ? '...' : 'Open Project'}
         </button>
